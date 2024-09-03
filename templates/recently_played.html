@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recently Played Tracks</title>
+</head>
+<body>
+    <h1>Your Recently Played Tracks</h1>
+    <ul>
+        {% for item in tracks %}
+        <li>
+            <strong>{{ item['track']['name'] }}</strong> by {{ item['track']['artists'] | map(attribute='name') | join(', ') }}
+            <p>Album: {{ item['track']['album']['name'] }}</p>
+            {% if item['track']['album']['images'] %}
+                <img src="{{ item['track']['album']['images'][0]['url'] }}" alt="Album Art" width="100">
+            {% endif %}
+        </li>
+    {% endfor %}
+    
+    </ul>
+</body>
+</html>

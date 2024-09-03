@@ -1,0 +1,94 @@
+<!-- view_playlist.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ playlist.name }}</title>
+</head>
+<body>
+    <h1>{{ playlist.name }}</h1>
+
+    <!-- Spotify Search Form -->
+    <form action="{{ url_for('search_results') }}" method="GET">
+        <label for="search_query">Search Spotify:</label>
+        <input type="text" name="query" id="search_query" placeholder="Search for a track, artist, or album" required>
+        <input type="hidden" name="playlist_id" value="{{ playlist.spotify_id }}"> <!-- Pass the playlist_id -->
+        <button type="submit">Search</button>
+    </form>
+
+    <!-- Sorting Dropdown -->
+    <form id="sort-form" action="" method="GET" onsubmit="return submitSortForm();">
+        <label for="sort_by">Sort by:</label>
+        <select name="sort_by" id="sort_by" required>
+            <option value="name">Name</option>
+            <option value="artist">Artist</option>
+            <option value="album">Album</option>
+            <option value="genre">Genre</option>
+        </select>
+        <input type="hidden" name="playlist_id" value="{{ playlist.spotify_id }}">
+        <button type="submit">Sort</button>
+    </form>
+
+    <script>
+        function submitSortForm() {
+            var form = document.getElementById('sort-form');
+            var sortBy = document.getElementById('sort_by').value;
+            var playlistId = "{{ playlist.spotify_id }}";
+            var actionUrl = "{{ url_for('sort_tracks', playlist_id='PLACEHOLDER', sort_by='PLACEHOLDER') }}";
+            actionUrl = actionUrl.replace('PLACEHOLDER', playlistId).replace('PLACEHOLDER', sortBy);
+            form.action = actionUrl;
+            return true;
+        }
+    </script>
+
+    <p>Tracks in this playlist: {{ playlist.total_tracks }}</p>
+    {% if playlist.image_url %}
+        <img src="{{ playlist.image_url }}" alt="Playlist Image" width="200">
+    {% endif %}
+
+    <!-- Display Search Results -->
+    {% if search_results %}
+        <h2>Search Results</h2>
+        <ul>
+        {% for track in search_results %}
+            <li>
+                <strong>{{ track.name }}</strong> by {{ track.artist }}
+                <p>Album: {{ track.album }}</p>
+                {% if track.image_url %}
+                    <img src="{{ track.image_url }}" alt="Album Art" width="100">
+                {% endif %}
+                <form action="{{ url_for('add_track_to_playlist', playlist_id=playlist.spotify_id) }}" method="POST" style="display:inline;">
+                    <input type="hidden" name="track_id" value="{{ track.spotify_url.split('/')[-1] }}">
+                    <button type="submit">Add to Playlist</button>
+                </form>
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+
+    <h2>Playlist Tracks</h2>
+    <ul>
+    {% for track in tracks %}
+        <li>
+            <strong>{{ track.name }}</strong> by {{ track.artists }}
+            <p>Album: {{ track.album }}</p>
+            {% if track.image_url %}
+                <img src="{{ track.image_url }}" alt="Album Art" width="100">
+            {% endif %}
+            <form action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.spotify_id, track_id=track.spotify_id) }}" method="POST" style="display:inline;">
+                <button type="submit">Remove</button>
+            </form>
+        </li>
+    {% endfor %}
+    </ul>
+
+    <a href="{{ url_for('playlists') }}">Back to Playlists</a>
+</body>
+</html>
+
+
+
+
+
+

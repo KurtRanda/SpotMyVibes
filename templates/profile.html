@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Spotify Profile</title>
+</head>
+<body>
+    <h1>Welcome, {{ profile['display_name'] }}!</h1>
+    <p>Email: {{ profile['email'] }}</p>
+    {% if profile['images'] %}
+        <img src="{{ profile['images'][0]['url'] }}" alt="Profile Picture" width="150">
+    {% endif %}
+    <h2>Search Spotify Music Library</h2>
+    <form action="{{ url_for('search_results') }}" method="GET">
+        <input type="text" name="query" placeholder="Search for songs, albums, artists" required>
+        <button type="submit">Search</button>
+    </form>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('playlists') }}">Your Playlists</a></li>
+            <li><a href="{{ url_for('top_tracks') }}">Your Top Tracks</a></li>
+            <li><a href="{{ url_for('recently_played') }}">Recently Played</a></li>
+            <li><a href="{{ url_for('logout_route') }}">Logout</a></li>
+        </ul>
+    </nav>
+</body>
+</html>

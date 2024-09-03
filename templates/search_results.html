@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Search Results</h1>
+
+    {% if results %}
+        <div class="results-container">
+            {% for result in results %}
+                <div class="result-item">
+                    <div class="result-image">
+                        {% if result.image_url %}
+                            <img src="{{ result.image_url }}" alt="{{ result.name }}">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='default_image.jpg') }}" alt="No Image Available">
+                        {% endif %}
+                    </div>
+                    <div class="result-details">
+                        <h2>{{ result.name }}</h2>
+                        {% if result.artist %}
+                            <p><strong>Artist:</strong> {{ result.artist }}</p>
+                        {% endif %}
+                        {% if result.album %}
+                            <p><strong>Album:</strong> {{ result.album }}</p>
+                        {% endif %}
+                        {% if result.release_date %}
+                            <p><strong>Release Date:</strong> {{ result.release_date }}</p>
+                        {% endif %}
+                        {% if result.followers %}
+                            <p><strong>Followers:</strong> {{ result.followers | number }}</p>
+                        {% endif %}
+                        {% if result.genres %}
+                            <p><strong>Genres:</strong> {{ result.genres }}</p>
+                        {% endif %}
+                        {% if result.owner %}
+                            <p><strong>Owner:</strong> {{ result.owner }}</p>
+                        {% endif %}
+                        {% if result.track_count %}
+                            <p><strong>Tracks:</strong> {{ result.track_count }}</p>
+                        {% endif %}
+                        {% if result.spotify_url %}
+                            <p><a href="{{ result.spotify_url }}" target="_blank">View on Spotify</a></p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No results found or an error occurred. Please try again.</p>
+    {% endif %}
+
+</body>
+</html>
+
+
+
+
