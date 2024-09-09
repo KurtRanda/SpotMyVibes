@@ -9,7 +9,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
 app = Flask(__name__)
 
+DATABASE_URL = os.getenv('postgres://u7klut5lsablv6:p35cab71cade7259b1d6e06336a575390a0140cbdccb96d56675bdb2d38c86c48@cd5gks8n4kb20g.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/dac8jk08g5o6nb')
 
+if DATABASE_URL is None:
+    raise ValueError("DATABASE_URL environment variable is not set.")
+
+engine = create_engine(DATABASE_URL)
 
 # Configuration for SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://kurt:mysecurepassword@localhost/spotifydb'
