@@ -1,23 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Spotify Playlists</title>
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block content %}
     <h1>Your Playlists</h1>
-    <ul>
+
+    {% if playlists %}
+    <div class="playlists-container">
         {% for playlist in playlists %}
-            <li>
-                <a href="{{ url_for('view_playlist', playlist_id=playlist.id) }}">{{ playlist.name }}</a>
-                <p>Total Tracks: {{ playlist.total_tracks }}</p>
-                {% if playlist.image_url %}
-                    <img src="{{ playlist.image_url }}" alt="Playlist Image" width="100">
-                {% endif %}
-            </li>
+        <div class="playlist-item">
+            <img src="{{ playlist.image_url }}" alt="{{ playlist.name }}">
+            <h3>{{ playlist.name }}</h3>
+            <a href="{{ url_for('view_playlist', playlist_id=playlist.spotify_id) }}">View Playlist</a>        
+        </div>
         {% endfor %}
-        </ul>
-        
-</body>
-</html>
+    {% else %}
+        <p>No playlists found.</p>
+    {% endif %}
+    </div>
+{% endblock %}
+

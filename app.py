@@ -1,22 +1,22 @@
-from flask import Flask, redirect, request, session, url_for, render_template, abort
-from models import db, User, Track, Genre, Playlist, Recommendation, UserTrack  # Import `db` and all models
-import requests
-import base64
-import os
-import hashlib
-import secrets
-import time
+from flask import Flask, redirect, request, session, url_for, render_template, abort, make_response, flash 
+from flask_wtf.csrf import CSRFProtect
+from sqlalchemy.orm import joinedload
+from models import db, User, Track, Genre, Playlist, Recommendation, UserTrack, playlist_tracks  # Import `db` and all models
+import requests, base64, os, hashlib, secrets, time
 from flask_migrate import Migrate
 from urllib.parse import urlencode
 from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
 
+
+
 # Configuration for SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://kurt:mysecurepassword@localhost/spotifydb'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'your_secret_key'  # Ensure you have a secret key
-
+csrf = CSRFProtect()
+csrf.init_app(app)
 # Initialize Flask-Migrate
 migrate = Migrate(app, db)
 
@@ -24,14 +24,16 @@ migrate = Migrate(app, db)
 db.init_app(app)
 
 # Spotify API details
-client_id = '145d25fd21e4441fa2c343749071f82c'  # Spotify API client ID
-client_secret = 'your_client_secret'  # Spotify API client secret
+client_id = '145d25fd21e4441fa2c343749071f82c'
+client_secret = 'your_client_secret'
 redirect_uri = 'http://127.0.0.1:5000/callback'
-scope = 'user-read-private user-read-email user-read-recently-played user-top-read'
 token_url = "https://accounts.spotify.com/api/token"
 profile_url = 'https://api.spotify.com/v1/me'
 
-# Helper function to generate code verifier and challenge
+
+### Helper functions ###
+
+# Helper function to generate code verifier and challenge for PKCE
 def generate_code_verifier_and_challenge():
     code_verifier = secrets.token_urlsafe(64)
     code_challenge = base64.urlsafe_b64encode(
@@ -39,106 +41,30 @@ def generate_code_verifier_and_challenge():
     ).decode('utf-8').rstrip('=')
     return code_verifier, code_challenge
 
-code_verifier, code_challenge = generate_code_verifier_and_challenge()
 
-@app.route('/')
-def home():
-    return render_template('home.html')
+def make_spotify_request(url, method='GET', params=None, data=None):
+    access_token = session.get('access_token')
+    headers = {'Authorization': f'Bearer {access_token}'}
 
-@app.route('/login')
-def login_route():
-    code_verifier, code_challenge = generate_code_verifier_and_challenge()
-    session['code_verifier'] = code_verifier
+    if method == 'GET':
+        response = requests.get(url, headers=headers, params=params)
+    elif method == 'POST':
+        headers['Content-Type'] = 'application/json'
+        response = requests.post(url, headers=headers, json=data)
+    elif method == 'DELETE':
+        headers['Content-Type'] = 'application/json'
+        response = requests.delete(url, headers=headers, json=data)
 
-    auth_params = {
-        'response_type': 'code',
-        'client_id': client_id,
-        'scope': scope,
-        'redirect_uri': redirect_uri,
-        'code_challenge_method': 'S256',
-        'code_challenge': code_challenge
-    }
+    if response.status_code != 200:
+        flash(f"Error: {response.status_code} - {response.text}")
+        return None
+    return response.json()
 
-    auth_url = 'https://accounts.spotify.com/authorize?' + urlencode(auth_params)
-    return redirect(auth_url)
-
-@app.route('/callback')
-def callback():
-    code = request.args.get('code')
-
-    if code:
-        code_verifier = session.get('code_verifier')
-
-        # Prepare the payload to exchange the authorization code for an access token
-        payload = {
-            'client_id': client_id,
-            'grant_type': 'authorization_code',
-            'code': code,
-            'redirect_uri': redirect_uri,
-            'code_verifier': code_verifier,
-        }
-
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-
-        response = requests.post(token_url, data=payload, headers=headers)
-        response_data = response.json()
-
-        if response.status_code == 200:
-            # Store access token and refresh token in the session
-            session['access_token'] = response_data.get('access_token')
-            session['refresh_token'] = response_data.get('refresh_token')
-            session['expires_in'] = response_data.get('expires_in')
-            session['token_acquired_at'] = int(time.time())
-
-            # Fetch user profile data from Spotify
-            headers = {
-                'Authorization': f'Bearer {session["access_token"]}'
-            }
-            profile_response = requests.get(profile_url, headers=headers)
-            profile_data = profile_response.json()
-
-            # Store spotify_id in session
-            session['spotify_id'] = profile_data['id']
-
-            # Check if the user already exists in the database
-            user = User.query.filter_by(spotify_id=profile_data['id']).first()
-
-            if not user:
-                # Create a new user if not found
-                user = User(
-                    spotify_id=profile_data['id'],
-                    display_name=profile_data['display_name'],
-                    email=profile_data['email'],
-                    profile_image_url=profile_data['images'][0]['url'] if profile_data['images'] else None
-                )
-                db.session.add(user)
-                db.session.commit()
-
-            return redirect(url_for('profile'))
-
-        else:
-            return f"Error: {response_data.get('error_description', 'Unknown error')}", 400
+def get_valid_access_token():
+    if ensure_access_token():
+        return session.get('access_token')
     else:
-        return 'Authorization failed', 400
-
-def refresh_access_token():
-    refresh_token = session.get('refresh_token')
-
-    # Refresh the access token using the refresh token
-    refresh_response = requests.post(token_url, data={
-        'grant_type': 'refresh_token',
-        'refresh_token': refresh_token,
-        'client_id': client_id,
-        'client_secret': client_secret,
-    })
-
-    # Parse the new access token
-    token_info = refresh_response.json()
-    session['access_token'] = token_info.get('access_token')
-    session['expires_in'] = token_info.get('expires_in')
-    session['token_acquired_at'] = int(time.time())
+        return redirect(url_for('login_route'))
 
 def ensure_access_token():
     expires_in = session.get('expires_in')
@@ -150,224 +76,301 @@ def ensure_access_token():
     current_time = int(time.time())
     if current_time - token_acquired_at >= expires_in:
         refresh_access_token()
-    
+
     return True
+
+def refresh_access_token():
+    refresh_token = session.get('refresh_token')
+
+    refresh_response = requests.post(token_url, data={
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token,
+        'client_id': client_id,
+        'client_secret': client_secret,
+    })
+
+    token_info = refresh_response.json()
+    session['access_token'] = token_info.get('access_token')
+    session['expires_in'] = token_info.get('expires_in')
+    session['token_acquired_at'] = int(time.time())
+
+def fetch_genre_for_artist(artist_id):
+    access_token = session.get('access_token')
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    artist_url = f"https://api.spotify.com/v1/artists/{artist_id}"
+    response = requests.get(artist_url, headers=headers)
+
+    if response.status_code == 200:
+        artist_data = response.json()
+        genres = artist_data.get('genres', [])
+        return ', '.join(genres) if genres else 'Unknown'
+    
+    return 'Unknown'
+
+def sync_user_playlists():
+    user = User.query.filter_by(spotify_id=session.get('spotify_id')).first()
+    if not user:
+        return None
+
+    playlists_data = make_spotify_request("https://api.spotify.com/v1/me/playlists")
+    if not playlists_data:
+        return None
+
+    for item in playlists_data['items']:
+        playlist = Playlist.query.filter_by(spotify_id=item['id']).first()
+        if not playlist:
+            playlist = Playlist(
+                spotify_id=item['id'],
+                name=item['name'],
+                owner_id=user.id,
+                total_tracks=item['tracks']['total'],
+                image_url=item['images'][0]['url'] if item['images'] else None
+            )
+            db.session.add(playlist)
+        else:
+            playlist.total_tracks = item['tracks']['total']
+            playlist.image_url = item['images'][0]['url'] if item['images'] else None
+
+    db.session.commit()
+    return Playlist.query.filter_by(owner_id=user.id).all()
+
+def sync_playlist_with_spotify(playlist_id):
+    access_token = session.get('access_token')
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+
+    # Fetch the playlist from the database
+    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first_or_404()
+
+    # Sync the tracks for this playlist with Spotify API
+    sync_tracks_for_playlist(playlist.id, playlist.spotify_id)
+
+    print(f"Playlist {playlist.spotify_id} synced with Spotify.")
+
+
+def sync_tracks_for_playlist(playlist_id, playlist_spotify_id):
+    access_token = session.get('access_token')
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # Initialize the base URL and offset
+    tracks_url = f"https://api.spotify.com/v1/playlists/{playlist_spotify_id}/tracks"
+    offset = 0
+    limit = 100
+    all_tracks = []
+
+    # Fetch tracks with pagination (Spotify API limits to 100 tracks, using pagination to exceed that number)
+    while True:
+        response = requests.get(
+            tracks_url,
+            headers=headers,
+            params={'limit': limit, 'offset': offset}
+        )
+        tracks_data = response.json()
+
+        if response.status_code != 200:
+            print(f"Failed to fetch tracks for playlist {playlist_spotify_id}: {response.json()}")
+            return
+
+        # Append the fetched tracks to the all_tracks list
+        all_tracks.extend(tracks_data['items'])
+
+        # Check if there are more tracks to fetch
+        if not tracks_data['next']:
+            break
+
+        # Increment the offset by the limit to fetch the next set of tracks
+        offset += limit
+
+    # Sync the tracks in the database
+    playlist = Playlist.query.filter_by(id=playlist_id).first_or_404()
+
+    # Get the existing tracks' Spotify IDs in the playlist
+    existing_tracks = {track.spotify_id for track in playlist.tracks}
+
+    # Fetch the Spotify track IDs from the response
+    spotify_track_ids = {item['track']['id'] for item in all_tracks if item['track'] and item['track'].get('id')}
+
+    # Remove tracks from the playlist that are no longer in the Spotify playlist
+    tracks_to_remove = [track for track in playlist.tracks if track.spotify_id not in spotify_track_ids]
+    for track in tracks_to_remove:
+        playlist.tracks.remove(track)
+
+    # Add new tracks from the Spotify playlist to the database
+    for item in all_tracks:
+        track_data = item['track']
+        # Ensure the track has a valid Spotify ID
+        if not track_data or not track_data.get('id'):
+            print(f"Skipping track with missing Spotify ID: {track_data}")
+            continue
+
+        if track_data['id'] not in existing_tracks:
+            # Check if the track already exists in the database
+            new_track = Track.query.filter_by(spotify_id=track_data['id']).first()
+            if not new_track:
+                # Fetch the genre dynamically or set it to 'Unknown' if not available
+                genre = fetch_genre_for_artist(track_data['artists'][0]['id']) if track_data['artists'] else 'Unknown'
+
+                new_track = Track(
+                    spotify_id=track_data['id'],
+                    name=track_data['name'],
+                    album=track_data['album']['name'],
+                    artists=', '.join([artist['name'] for artist in track_data['artists']]),
+                    image_url=track_data['album']['images'][0]['url'] if track_data['album']['images'] else None,
+                    genre=genre  # Ensure genre is a string, not a class
+                )
+                db.session.add(new_track)
+                db.session.flush()  # Ensure the new track is saved
+
+            # Check if the track is already in the playlist before adding
+            if new_track not in playlist.tracks:
+                playlist.tracks.append(new_track)
+
+    # Commit the changes once all tracks are synced
+    db.session.commit()
+
+
+def get_artist_id(artist_name, access_token):
+    search_url = "https://api.spotify.com/v1/search"
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    params = {
+        'q': artist_name,
+        'type': 'artist',
+        'limit': 1  # Limit the result to only one artist
+    }
+    response = requests.get(search_url, headers=headers, params=params)
+
+    if response.status_code == 200:
+        results = response.json()
+        if results['artists']['items']:
+            return results['artists']['items'][0]['id']  # Return the first artist's ID
+    return None
+
+
+def get_track_id(track_name, access_token):
+    search_url = "https://api.spotify.com/v1/search"
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    params = {
+        'q': track_name,
+        'type': 'track',
+        'limit': 1  # Limit the result to only one track
+    }
+    response = requests.get(search_url, headers=headers, params=params)
+
+    if response.status_code == 200:
+        results = response.json()
+        if results['tracks']['items']:
+            return results['tracks']['items'][0]['id']  # Return the first track's ID
+    return None
+
+### Routes ###
+@app.route('/')
+def welcome():
+    return render_template('welcome.html')
+
+
+@app.route('/login')
+def login_route():
+    code_verifier, code_challenge = generate_code_verifier_and_challenge()
+    session['code_verifier'] = code_verifier
+
+    auth_params = {
+        'response_type': 'code',
+        'client_id': client_id,
+        'scope': 'user-read-private user-read-email user-read-recently-played user-top-read playlist-modify-public playlist-modify-private',
+        'redirect_uri': redirect_uri,
+        'code_challenge_method': 'S256',
+        'code_challenge': code_challenge
+    }
+
+    auth_url = 'https://accounts.spotify.com/authorize?' + urlencode(auth_params)
+    return redirect(auth_url)
+
+
+@app.route('/callback')
+def callback():
+    code = request.args.get('code')
+
+    if code:
+        code_verifier = session.get('code_verifier')
+
+        payload = {
+            'client_id': client_id,
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': redirect_uri,
+            'code_verifier': code_verifier,
+        }
+
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        response = requests.post(token_url, data=payload, headers=headers)
+        response_data = response.json()
+
+        if response.status_code == 200:
+            session['access_token'] = response_data.get('access_token')
+            session['refresh_token'] = response_data.get('refresh_token')
+            session['expires_in'] = response_data.get('expires_in')
+            session['token_acquired_at'] = int(time.time())
+
+            profile_data = make_spotify_request(profile_url)
+
+            session['spotify_id'] = profile_data['id']
+            user = User.query.filter_by(spotify_id=profile_data['id']).first()
+
+            if not user:
+                user = User(
+                    spotify_id=profile_data['id'],
+                    display_name=profile_data['display_name'],
+                    email=profile_data['email'],
+                    profile_image_url=profile_data['images'][0]['url'] if profile_data['images'] else None
+                )
+                db.session.add(user)
+                db.session.commit()
+
+            return redirect(url_for('profile'))
+        else:
+            return f"Error: {response_data.get('error_description', 'Unknown error')}", 400
+    else:
+        return 'Authorization failed', 400
+
 
 @app.route('/profile')
 def profile():
     if not ensure_access_token():
         return redirect(url_for('login_route'))
 
-    access_token = session.get('access_token')
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-
-    # Fetch user profile data from Spotify
-    profile_response = requests.get(profile_url, headers=headers)
-    profile_data = profile_response.json()
-
-    # Fetch the user's playlists from Spotify
-    playlists_url = "https://api.spotify.com/v1/me/playlists"
-    playlists_response = requests.get(playlists_url, headers=headers)
-    playlists_data = playlists_response.json()
-
-    for item in playlists_data['items']:
-        playlist_spotify_id = item['id']
-        playlist = Playlist.query.filter_by(spotify_id=playlist_spotify_id).first()
-
-        if not playlist:
-            # Create a new playlist in the database if it doesn't exist
-            playlist = Playlist(
-                spotify_id=playlist_spotify_id,
-                name=item['name'],
-                owner_id=session.get('user_id'),  # Assuming the user's ID is stored in the session
-                total_tracks=item['tracks']['total'],
-                image_url=item['images'][0]['url'] if item['images'] else None
-            )
-            db.session.add(playlist)
-            db.session.commit()
-
-    playlists = Playlist.query.filter_by(owner_id=session.get('user_id')).all()
+    profile_data = make_spotify_request(profile_url)
+    playlists = sync_user_playlists()
 
     return render_template('profile.html', profile=profile_data, playlists=playlists)
-
-##### Search Route ############
-@app.route('/search', methods=['GET'])
-def search_results():
-    if not ensure_access_token():
-        return redirect(url_for('login_route'))
-
-    access_token = session.get('access_token')
-    query = request.args.get('query')
-    search_type = request.args.get('type', 'track')  # Default to track if not provided
-    market = request.args.get('market', None)
-    limit = request.args.get('limit', 20)
-    offset = request.args.get('offset', 0)
-    playlist_id = request.args.get('playlist_id')  # Check if search is from a playlist
-
-    # Define the search parameters
-    search_params = {
-        'q': query,
-        'type': search_type,
-        'limit': limit,
-        'offset': offset,
-    }
-
-    # Include market if specified
-    if market:
-        search_params['market'] = market
-
-    # Print the URL and parameters to verify them
-    print(f"Request URL: https://api.spotify.com/v1/search")
-    print(f"Search Params: {search_params}")
-    print(f"Authorization: Bearer {access_token}")
-
-    # Make the API request to Spotify
-    response = requests.get(
-        'https://api.spotify.com/v1/search',
-        headers={
-            'Authorization': f'Bearer {access_token}'
-        },
-        params=search_params
-    )
-   
-    # Print the response content for debugging
-    print(f"Response Status Code: {response.status_code}")
-    print(f"Response Content: {response.json()}")
-
-    # Handle the response
-    if response.status_code == 200:
-        search_results = response.json()
-
-        # Parse the results based on the search type
-        parsed_results = []
-        if search_type == 'album' and 'albums' in search_results:
-            albums = search_results['albums']['items']
-            for album in albums:
-                album_info = {
-                    'name': album.get('name'),
-                    'artist': album['artists'][0].get('name') if album['artists'] else None,
-                    'release_date': album.get('release_date'),
-                    'image_url': album['images'][0]['url'] if album['images'] else None,
-                    'spotify_url': album.get('external_urls', {}).get('spotify')
-                }
-                parsed_results.append(album_info)
-        elif search_type == 'track' and 'tracks' in search_results:
-            tracks = search_results['tracks']['items']
-            for track in tracks:
-                track_info = {
-                    'name': track.get('name'),
-                    'artist': track['artists'][0].get('name') if track['artists'] else None,
-                    'album': track['album'].get('name') if track.get('album') else None,
-                    'release_date': track['album'].get('release_date') if track.get('album') else None,
-                    'image_url': track['album']['images'][0]['url'] if track.get('album') and track['album']['images'] else None,
-                    'spotify_url': track.get('external_urls', {}).get('spotify')
-                }
-                parsed_results.append(track_info)
-        elif search_type == 'artist' and 'artists' in search_results:
-            artists = search_results['artists']['items']
-            for artist in artists:
-                artist_info = {
-                    'name': artist.get('name'),
-                    'followers': artist.get('followers', {}).get('total'),
-                    'genres': ", ".join(artist.get('genres', [])),
-                    'image_url': artist['images'][0]['url'] if artist['images'] else None,
-                    'spotify_url': artist.get('external_urls', {}).get('spotify')
-                }
-                parsed_results.append(artist_info)
-        elif search_type == 'playlist' and 'playlists' in search_results:
-            playlists = search_results['playlists']['items']
-            for playlist in playlists:
-                playlist_info = {
-                    'name': playlist.get('name'),
-                    'owner': playlist['owner'].get('display_name'),
-                    'track_count': playlist.get('tracks', {}).get('total'),
-                    'image_url': playlist['images'][0]['url'] if playlist['images'] else None,
-                    'spotify_url': playlist.get('external_urls', {}).get('spotify')
-                }
-                parsed_results.append(playlist_info)
-
-        if playlist_id:
-            # Render the playlist view with the search results included
-            playlist = get_playlist(playlist_id)  # Fetch the playlist object from the database
-            return render_template('view_playlist.html', playlist=playlist, tracks=playlist.tracks, search_results=parsed_results)
-        
-        # Render the general search results template
-        return render_template('search_results.html', results=parsed_results)
-    else:
-        # Handle errors or no results
-        return render_template('search_results.html', error="Something went wrong or no results found")
-
-
-
-@app.route('/sync_playlists')
-def sync_playlists():
-    if not ensure_access_token():
-        return redirect(url_for('login_route'))
-
-    access_token = session.get('access_token')
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-    playlists_response = requests.get('https://api.spotify.com/v1/me/playlists', headers=headers)
-    playlists_data = playlists_response.json()
-
-    # Retrieve the user from the database using the spotify_id stored in the session
-    user = User.query.filter_by(spotify_id=session.get('spotify_id')).first()
-
-    if not user:
-        return "User not found", 404
-
-    for item in playlists_data['items']:
-        # Check if the playlist already exists in the database
-        existing_playlist = Playlist.query.filter_by(spotify_id=item['id']).first()
-
-        if not existing_playlist:
-            # Add new playlist to the database
-            new_playlist = Playlist(
-                spotify_id=item['id'],
-                name=item['name'],
-                owner_id=user.id,  # Adjust this based on your user structure
-                total_tracks=item['tracks']['total'],
-                image_url=item['images'][0]['url'] if item['images'] else None
-            )
-            db.session.add(new_playlist)
-            db.session.commit()
-
-    return "Playlists synced successfully!"
-
 
 @app.route('/playlists')
 def playlists():
     if not ensure_access_token():
         return redirect(url_for('login_route'))
 
-    access_token = session.get('access_token')
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-    playlists_response = requests.get('https://api.spotify.com/v1/me/playlists', headers=headers)
-    playlists_data = playlists_response.json()
-    
-    return render_template('playlists.html', playlists=playlists_data['items'])
+    # Sync the playlists from Spotify API (sync all playlists)
+    sync_user_playlists()
 
+    # Fetch the user based on the Spotify ID stored in the session
+    user = User.query.filter_by(spotify_id=session.get('spotify_id')).first()
 
-def get_playlist(playlist_id):
-    """
-    Fetches a playlist from the database by its Spotify ID.
-    
-    Args:
-        playlist_id (str): The Spotify ID of the playlist.
-    
-    Returns:
-        Playlist: The Playlist object from the database.
-    """
-    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first()
-    if not playlist:
-        raise ValueError(f"Playlist with ID {playlist_id} not found.")
-    return playlist
+    if not user:
+        return "User not found", 404
 
+    # Fetch playlists from the database after syncing
+    playlists = Playlist.query.filter_by(owner_id=user.id).all()
+
+    return render_template('playlists.html', playlists=playlists)
 
 @app.route('/playlist/<string:playlist_id>')
 def view_playlist(playlist_id):
@@ -379,126 +382,16 @@ def view_playlist(playlist_id):
     # Sync the tracks for this playlist when the user selects it
     sync_tracks_for_playlist(playlist.id, playlist.spotify_id)
 
-    # Fetch the tracks from the database after syncing
-    tracks = Track.query.filter_by(playlist_id=playlist.id).all()
+    # Fetch the tracks associated with this playlist
+    tracks = playlist.tracks  # Fetch using the many-to-many relationship
 
-    return render_template('view_playlist.html', playlist=playlist, tracks=tracks)
+    response = make_response(render_template('view_playlist.html', playlist=playlist, tracks=tracks))
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response
 
-
-def sync_tracks_for_playlist(playlist_id, playlist_spotify_id):
-    access_token = session.get('access_token')
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-
-    tracks_url = f"https://api.spotify.com/v1/playlists/{playlist_spotify_id}/tracks"
-    response = requests.get(tracks_url, headers=headers)
-    tracks_data = response.json()
-
-    with db.session.no_autoflush:
-        for item in tracks_data['items']:
-            track_data = item.get('track')
-
-            if not track_data:
-                continue  # Skip if track data is missing
-
-            spotify_id = track_data.get('id')
-            if not spotify_id:
-                print(f"Skipping track with missing spotify_id: {track_data.get('name')}")
-                continue  # Skip tracks with missing spotify_id
-
-            # Check if the track already exists in the database
-            existing_track = Track.query.filter_by(spotify_id=spotify_id, playlist_id=playlist_id).first()
-
-            if existing_track:
-                print(f"Track {track_data.get('name')} already exists in playlist {playlist_id}, skipping.")
-                continue  # Skip this track since it already exists
-
-            # Safely access image_url
-            images = track_data.get('album', {}).get('images', [])
-            image_url = images[0]['url'] if images else None
-
-            # If the track does not exist, add it to the database
-            new_track = Track(
-                spotify_id=spotify_id,
-                name=track_data.get('name'),
-                album=track_data.get('album', {}).get('name'),
-                artists=', '.join([artist['name'] for artist in track_data.get('artists', [])]),
-                image_url=image_url,
-                playlist_id=playlist_id
-            )
-            db.session.add(new_track)
-
-        try:
-            db.session.commit()
-        except IntegrityError as e:
-            db.session.rollback()
-            print(f"Error committing changes: {e}")
-
-@app.route('/playlist/<string:playlist_id>/add_track', methods=['POST'])
-def add_track_to_playlist(playlist_id):
-    if not ensure_access_token():
-        return redirect(url_for('login_route'))
-
-    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first_or_404()
-    track_id = request.form.get('track_id')
-
-    track = Track.query.filter_by(spotify_id=track_id).first()
-    if not track:
-        # Fetch track details from Spotify API if it doesn't exist in the database
-        # You might want to write a function to handle this
-
-    # Associate the track with the playlist
-        track.playlist_id = playlist.id
-    db.session.commit()
-
-    return redirect(url_for('view_playlist', playlist_id=playlist.spotify_id))
-
-@app.route('/playlist/<string:playlist_id>/remove_track/<string:track_id>', methods=['POST'])
-def remove_track_from_playlist(playlist_id, track_id):
-    if not ensure_access_token():
-        return redirect(url_for('login_route'))
-
-    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first_or_404()
-    track = Track.query.filter_by(spotify_id=track_id, playlist_id=playlist.id).first_or_404()
-
-    db.session.delete(track)
-    db.session.commit()
-
-    return redirect(url_for('view_playlist', playlist_id=playlist.spotify_id))
-
-@app.route('/playlist/<string:playlist_id>/filter', methods=['GET', 'POST'])
-def filter_tracks(playlist_id):
-    if not ensure_access_token():
-        return redirect(url_for('login_route'))
-
-    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first_or_404()
-
-    if request.method == 'POST':
-        genre_name = request.form.get('genre')
-        tracks = Track.query.join(Track.genres).filter(Genre.name.ilike(f'%{genre_name}%'), Track.playlist_id == playlist.id).all()
-    else:
-        tracks = Track.query.filter_by(playlist_id=playlist.id).all()
-
-    return render_template('view_playlist.html', playlist=playlist, tracks=tracks)
-
-@app.route('/playlist/<string:playlist_id>/sort/<string:sort_by>')
-def sort_tracks(playlist_id, sort_by):
-    if not ensure_access_token():
-        return redirect(url_for('login_route'))
-
-    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first_or_404()
-
-    if sort_by == 'name':
-        tracks = Track.query.filter_by(playlist_id=playlist.id).order_by(Track.name).all()
-    elif sort_by == 'artist':
-        tracks = Track.query.filter_by(playlist_id=playlist.id).order_by(Track.artists).all()
-    elif sort_by == 'album':
-        tracks = Track.query.filter_by(playlist_id=playlist.id).order_by(Track.album).all()
-    else:
-        tracks = Track.query.filter_by(playlist_id=playlist.id).all()
-
-    return render_template('view_playlist.html', playlist=playlist, tracks=tracks)
 
 @app.route('/top_tracks')
 def top_tracks():
@@ -516,51 +409,282 @@ def top_tracks():
 
     top_tracks_data = top_tracks_response.json()
 
+    # Ensure the response structure is as expected
     if 'items' not in top_tracks_data:
         return "Error: Unexpected response structure from Spotify API", 400
 
-    return render_template('top_tracks.html', tracks=top_tracks_data['items'])
+    # Fetch playlists from the database
+    user = User.query.filter_by(spotify_id=session.get('spotify_id')).first()
+    playlists = Playlist.query.filter_by(owner_id=user.id).all()
 
-@app.route('/tracks', methods=['GET', 'POST'])
-def tracks():
-    if not ensure_access_token():
-        return redirect(url_for('login_route'))
+    # Fetch genre for each track's artist and add it to the track data
+    tracks_with_genres = []
+    for track in top_tracks_data['items']:
+        artist_id = track['artists'][0]['id']
+        genre = fetch_genre_for_artist(artist_id)
+        track['genre'] = genre
+        tracks_with_genres.append(track)
 
-    if request.method == 'POST':
-        genre_query = request.form.get('genre')
-        tracks = Track.query.join(Track.genres).filter(Genre.name.ilike(f'%{genre_query}%')).all()
-    else:
-        tracks = Track.query.all()
-    return render_template('tracks.html', tracks=tracks)
+    return render_template('top_tracks.html', tracks=tracks_with_genres, playlists=playlists)
 
 @app.route('/recently_played')
 def recently_played():
     if not ensure_access_token():
         return redirect(url_for('login_route'))
-    
+
     access_token = session.get('access_token')
     headers = {
         'Authorization': f'Bearer {access_token}'
     }
     recently_played_response = requests.get('https://api.spotify.com/v1/me/player/recently-played', headers=headers)
-    
+
     if recently_played_response.status_code != 200:
         return f"Error fetching recently played tracks: {recently_played_response.status_code} - {recently_played_response.text}", 400
-    
+
     recently_played_data = recently_played_response.json()
 
     if 'items' not in recently_played_data or not recently_played_data['items']:
         return "No recently played tracks found.", 200
 
-    return render_template('recently_played.html', tracks=recently_played_data['items'])
+    # Fetch playlists from database 
+    user = User.query.filter_by(spotify_id=session.get('spotify_id')).first()
+    playlists = Playlist.query.filter_by(owner_id=user.id).all()
+
+    # Attach genres to tracks
+    tracks_with_genres = []
+    for item in recently_played_data['items']:
+        track = item['track']
+        
+        if 'artists' in track and track['artists']:
+            artist_id = track['artists'][0]['id']
+            genre = fetch_genre_for_artist(artist_id)
+            track['genre'] = genre
+            tracks_with_genres.append(track)
+        else:
+            print(f"Skipping track with no artists: {track.get('name', 'Unknown')}")
+
+    return render_template('recently_played.html', tracks=tracks_with_genres, playlists=playlists)
+
+@app.route('/recommendations', methods=['GET'])
+def recommendations():
+    if not ensure_access_token():
+        return redirect(url_for('login_route'))
+
+    access_token = session.get('access_token')
+
+    recommendation_type = request.args.get('type')
+    value = request.args.get('value')
+
+    if not recommendation_type or not value:
+        return render_template('recommendations.html')
+
+    url = "https://api.spotify.com/v1/recommendations"
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    params = {'limit': 10}
+
+    if recommendation_type == 'genre':
+        params['seed_genres'] = value.lower()
+    elif recommendation_type == 'artist':
+        artist_id = get_artist_id(value, access_token)
+        if artist_id:
+            params['seed_artists'] = artist_id
+        else:
+            return "Artist not found."
+    elif recommendation_type == 'track':
+        track_id = get_track_id(value, access_token)
+        if track_id:
+            params['seed_tracks'] = track_id
+        else:
+            return "Track not found."
+
+    response = requests.get(url, headers=headers, params=params)
+
+    if response.status_code == 200:
+        recommendations_data = response.json()
+        tracks = recommendations_data['tracks']
+        return render_template('recommendations.html', tracks=tracks)
+    else:
+        return f"Error fetching recommendations: {response.status_code}"
+
+@app.route('/playlist/<string:playlist_id>/sort/<string:sort_by>')
+def sort_tracks(playlist_id, sort_by):
+    if not ensure_access_token():
+        return redirect(url_for('login_route'))
+
+    # Get the playlist
+    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first_or_404()
+
+    # Build the query for sorting
+    if sort_by == 'artist':
+        sorted_tracks = db.session.query(Track).join(playlist_tracks).join(Playlist).filter(Playlist.id == playlist.id).order_by(Track.artists).all()
+    elif sort_by == 'album':
+        sorted_tracks = db.session.query(Track).join(playlist_tracks).join(Playlist).filter(Playlist.id == playlist.id).order_by(Track.album).all()
+    elif sort_by == 'name':
+        sorted_tracks = db.session.query(Track).join(playlist_tracks).join(Playlist).filter(Playlist.id == playlist.id).order_by(Track.name).all()
+    elif sort_by == 'genre':
+        sorted_tracks = sorted(playlist.tracks, key=lambda track: track.genre if track.genre else '')  # Handle possible None values
+    else:
+        return "Invalid sort option", 400
+
+    # Render the playlist with sorted tracks
+    return render_template('view_playlist.html', playlist=playlist, tracks=sorted_tracks)
+
+
+@app.route('/search', methods=['GET'])
+def search_results():
+    if not ensure_access_token():
+        return redirect(url_for('login_route'))
+
+    query = request.args.get('query')
+    search_params = {'q': query, 'type': 'album,artist,track', 'limit': 20, 'offset': 0}
+    search_results = make_spotify_request('https://api.spotify.com/v1/search', params=search_params)
+
+    if search_results:
+        albums, artists, tracks = [], [], []
+        for album in search_results.get('albums', {}).get('items', []):
+            albums.append({
+                'id': album['id'], 'name': album['name'], 'artist': album['artists'][0]['name'], 
+                'image_url': album['images'][0]['url'] if album['images'] else None
+            })
+        for artist in search_results.get('artists', {}).get('items', []):
+            artists.append({
+                'id': artist['id'], 'name': artist['name'], 'genres': ", ".join(artist['genres']),
+                'image_url': artist['images'][0]['url'] if artist['images'] else None
+            })
+        for track in search_results.get('tracks', {}).get('items', []):
+            tracks.append({
+                'id': track['id'], 'name': track['name'], 'artist': track['artists'][0]['name'], 
+                'album': track['album']['name'], 'image_url': track['album']['images'][0]['url']
+            })
+
+        playlists = sync_user_playlists()
+        return render_template('search_results.html', albums=albums, artists=artists, tracks=tracks, playlists=playlists)
+    else:
+        return render_template('search_results.html', error="Something went wrong or no results found")
+
+
+@app.route('/album/<string:album_id>')
+def view_album(album_id):
+    if not ensure_access_token():
+        return redirect(url_for('login_route'))
+
+    album_data = make_spotify_request(f"https://api.spotify.com/v1/albums/{album_id}")
+
+    if album_data:
+        album = {
+            'name': album_data['name'], 'artist': album_data['artists'][0]['name'],
+            'release_date': album_data['release_date'], 'image_url': album_data['images'][0]['url'] if album_data['images'] else None,
+            'tracks': [{'spotify_id': track['id'], 'name': track['name'], 'artist': ', '.join([artist['name'] for artist in track['artists']])}
+                       for track in album_data['tracks']['items']]
+        }
+        playlists = sync_user_playlists()
+        return render_template('view_album.html', album=album, playlists=playlists)
+    else:
+        return redirect(url_for('search_results'))
+
+
+@app.route('/artist/<string:artist_id>')
+def view_artist(artist_id):
+    if not ensure_access_token():
+        return redirect(url_for('login_route'))
+
+    artist_data = make_spotify_request(f"https://api.spotify.com/v1/artists/{artist_id}")
+    top_tracks_data = make_spotify_request(f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?market=US")
+    albums_data = make_spotify_request(f"https://api.spotify.com/v1/artists/{artist_id}/albums")
+
+    if artist_data and top_tracks_data and albums_data:
+        artist = {'id': artist_data['id'], 'name': artist_data['name'], 'genres': ", ".join(artist_data.get('genres', [])),
+                  'followers': artist_data['followers']['total'], 'image_url': artist_data['images'][0]['url']}
+
+        top_tracks = [{'spotify_id': track['id'], 'name': track['name'], 'artist': ', '.join([artist['name'] for artist in track['artists']]),
+                       'album': track['album']['name'], 'image_url': track['album']['images'][0]['url']}
+                      for track in top_tracks_data['tracks']]
+
+        albums = [{'spotify_id': album['id'], 'name': album['name'], 'image_url': album['images'][0]['url'] if album['images'] else None}
+                  for album in albums_data['items']]
+
+        playlists = sync_user_playlists()
+        return render_template('view_artist.html', artist=artist, top_tracks=top_tracks, albums=albums, playlists=playlists)
+    else:
+        return redirect(url_for('search_results'))
+
+@app.route('/playlist/<string:track_id>/add', methods=['POST'])
+def add_track_to_playlist(track_id):
+    if not ensure_access_token():
+        return redirect(url_for('login_route'))
+
+    # Get the selected playlist ID from the form
+    playlist_id = request.form.get('playlist_id')
+
+    # Ensure that both the track and playlist ID are present
+    if not track_id or not playlist_id:
+        return "Invalid track or playlist", 400
+
+    # Get the access token and sync the track with Spotify
+    access_token = session.get('access_token')
+    add_track_url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+    response = requests.post(
+        add_track_url,
+        headers={'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'},
+        json={'uris': [f'spotify:track:{track_id}']}
+    )
+
+    if response.status_code == 201:
+        # Success: Track added to the playlist
+        flash('Track added successfully to the playlist!', 'success')
+        sync_playlist_with_spotify(playlist_id)  # Sync the playlist with Spotify after the track is added
+    else:
+        # Handle failure
+        flash(f"Failed to add track: {response.json().get('error', {}).get('message')}", 'danger')
+
+    # Redirect back to the referring page (like top tracks or search results)
+    return redirect(request.referrer)
+
+
+@app.route('/playlist/<string:playlist_id>/remove_track/<string:track_id>', methods=['POST'])
+def remove_track_from_playlist(playlist_id, track_id):
+    if not ensure_access_token():
+        return redirect(url_for('login_route'))
+
+    # Fetch the playlist and track from the database
+    playlist = Playlist.query.filter_by(spotify_id=playlist_id).first_or_404()
+    track = Track.query.filter_by(spotify_id=track_id).first_or_404()
+
+    # Remove the track from the playlist in the database
+    if track in playlist.tracks:
+        playlist.tracks.remove(track)
+        db.session.commit()
+
+    # Now, remove the track from Spotify
+    access_token = session.get('access_token')
+    headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
+    remove_url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+    data = {"tracks": [{"uri": f"spotify:track:{track_id}"}]}
+
+    response = requests.delete(remove_url, headers=headers, json=data)
+
+    if response.status_code == 200:
+        flash(f"Track {track.name} successfully removed from Spotify playlist.")
+        sync_playlist_with_spotify(playlist_id)  # Sync the playlist with Spotify after track is removed
+    else:
+        flash(f"Failed to remove track from Spotify: {response.text}")
+
+    # Redirect back to the playlist view
+    return redirect(url_for('view_playlist', playlist_id=playlist_id))
+
 
 @app.route('/logout')
 def logout_route():
     session.clear()
-    return redirect(url_for('home'))
+    return redirect(url_for('welcome'))
+
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # Ensure the tables are created before running the app
+        db.create_all()
     app.run(debug=True)
+
 

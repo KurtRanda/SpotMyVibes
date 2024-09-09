@@ -1,24 +1,11 @@
-<!-- view_playlist.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ playlist.name }}</title>
-</head>
-<body>
-    <h1>{{ playlist.name }}</h1>
+{% extends "base.html" %}
 
-    <!-- Spotify Search Form -->
-    <form action="{{ url_for('search_results') }}" method="GET">
-        <label for="search_query">Search Spotify:</label>
-        <input type="text" name="query" id="search_query" placeholder="Search for a track, artist, or album" required>
-        <input type="hidden" name="playlist_id" value="{{ playlist.spotify_id }}"> <!-- Pass the playlist_id -->
-        <button type="submit">Search</button>
-    </form>
+{% block content %}
+    <h1>{{ playlist.name }}</h1>
 
     <!-- Sorting Dropdown -->
     <form id="sort-form" action="" method="GET" onsubmit="return submitSortForm();">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="sort_by">Sort by:</label>
         <select name="sort_by" id="sort_by" required>
             <option value="name">Name</option>
@@ -42,11 +29,10 @@
         }
     </script>
 
-    <p>Tracks in this playlist: {{ playlist.total_tracks }}</p>
     {% if playlist.image_url %}
         <img src="{{ playlist.image_url }}" alt="Playlist Image" width="200">
     {% endif %}
-
+    
     <!-- Display Search Results -->
     {% if search_results %}
         <h2>Search Results</h2>
@@ -59,6 +45,7 @@
                     <img src="{{ track.image_url }}" alt="Album Art" width="100">
                 {% endif %}
                 <form action="{{ url_for('add_track_to_playlist', playlist_id=playlist.spotify_id) }}" method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="track_id" value="{{ track.spotify_url.split('/')[-1] }}">
                     <button type="submit">Add to Playlist</button>
                 </form>
@@ -68,24 +55,51 @@
     {% endif %}
 
     <h2>Playlist Tracks</h2>
-    <ul>
-    {% for track in tracks %}
-        <li>
-            <strong>{{ track.name }}</strong> by {{ track.artists }}
-            <p>Album: {{ track.album }}</p>
-            {% if track.image_url %}
-                <img src="{{ track.image_url }}" alt="Album Art" width="100">
-            {% endif %}
-            <form action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.spotify_id, track_id=track.spotify_id) }}" method="POST" style="display:inline;">
-                <button type="submit">Remove</button>
-            </form>
+    <p>Tracks count: {{ tracks | length }}</p>
+    <ul id="tracks-list">
+        {% for track in tracks %}
+        <li id="track-{{ track.spotify_id }}">
+          <strong>{{ track.name }}</strong> by {{ track.artists }}
+          <p>Album: {{ track.album }}</p>
+          {% if track.image_url %}
+          <img src="{{ track.image_url }}" alt="Album Art" width="100">
+          {% endif %}
+          <form action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.spotify_id, track_id=track.spotify_id) }}" method="POST" onsubmit="removeTrack(event, '{{ track.spotify_id }}')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Remove</button>
+          </form>
         </li>
-    {% endfor %}
-    </ul>
+        {% endfor %}
+      </ul>
+      
+      <script>  
+        function removeTrack(event, trackId) {
+          event.preventDefault();
+          
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
-    <a href="{{ url_for('playlists') }}">Back to Playlists</a>
-</body>
-</html>
+          fetch(event.target.action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRFToken': csrfToken
+            },
+            body: new URLSearchParams({
+                'csrf_token': csrfToken  
+            })
+          })
+          .then(response => {
+            if (response.ok) {
+              document.getElementById(`track-${trackId}`).remove(); 
+            } else {
+                console.error('Failed to remove track:', response);
+            }
+          })
+          .catch(error => console.error('Error removing track:', error));
+        }
+      </script>
+{% endblock %}
+
 
 
 

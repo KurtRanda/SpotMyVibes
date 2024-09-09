@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <a href="{{ url_for('search_results', query=session['last_search_query']) }}">
+        Back to Search Results
+    </a>
+    <h1>{{ artist.name }}</h1>
+
+    {% if artist.image_url %}
+        <img src="{{ artist.image_url }}" alt="{{ artist.name }}" width="300">
+    {% endif %}
+
+    <p>Genres: {{ artist.genres }}</p>
+    <p>Followers: {{ artist.followers }}</p>
+
+    <h2>Top Tracks</h2>
+    <ul>
+        {% for track in top_tracks %}
+            <li>
+                <strong>{{ track.name }}</strong> - {{ track.artist }}
+                <p>Album: {{ track.album }}</p>
+                <form action="{{ url_for('add_track_to_playlist', track_id=track.spotify_id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="playlist_id">Select Playlist:</label>
+                    <select name="playlist_id" id="playlist_id">
+                        {% for playlist in playlists %}
+                            <option value="{{ playlist.spotify_id }}">{{ playlist.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Add Track to Playlist</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <h2>Albums</h2>
+    <ul>
+        {% for album in albums %}
+            <li>
+                <strong>{{ album.name }}</strong> 
+                <br>
+                <img src="{{ album.image_url }}" alt="{{ album.name }}" width="100">
+                <br>
+                <a href="{{ url_for('view_album', album_id=album.spotify_id) }}">View Album</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
+
+

@@ -1,26 +1,194 @@
+/* Non-Bootstrap styling */
 body {
-    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #1db954 0%, #121212 50%);
+    color: white;
+    font-family: 'Poppins', sans-serif;
     margin: 0;
     padding: 0;
 }
+  
 
-nav {
-    background-color: #1DB954;
-    padding: 1rem;
-    display: flex;
-    justify-content: flex-end;
+.navbar {
+    background: linear-gradient(135deg, #1db954 0%, #121212 50%);
 }
 
-nav a {
+.navbar-brand, .nav-link, .navbar-toggler-icon {
     color: #fff;
-    margin-left: 1rem;
-    text-decoration: none;
+}
+
+.nav-link:hover {
+    color: #000;
+}
+
+.navbar-toggler {
+    border: none;
+}
+
+.btn-outline-light {
+    border-color: #fff;
+    color: #fff;
+}
+
+.btn-outline-light:hover {
+    background-color: #fff;
+    color: #1DB954;
 }
 
 .container {
-    padding: 2rem;
+    margin-top: 30px;
 }
 
-h1 {
-    color: #1DB954;
+
+.playlists-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 20px;
 }
+
+.playlist-item {
+    background-color: #000000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    padding: 10px;
+}
+
+.playlist-item img {
+    width: 100%;
+    height: auto;
+    border-bottom: 2px solid #ddd;
+}
+
+.playlist-item h3 {
+    font-size: 1.2em;
+    margin: 10px 0;
+}
+
+.playlist-item p {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.playlist-item a {
+    display: inline-block;
+    padding: 8px 12px;
+    margin-top: 10px;
+    background-color: #1db954;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+.playlist-item a:hover {
+    background-color: #17a04e;
+}
+
+.hero {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('/static/images/hero-image.jpg');
+    background-size: cover;
+    background-position: center;
+    padding: 80px 20px;
+    text-align: center;
+    color: white;
+    margin-bottom: 30px;
+    border-radius: 10px;
+}
+  
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    font-weight: bold;
+    color: #1db954; /* Spotify Green */
+}
+  
+.hero p {
+    font-size: 1.2rem;
+    margin-bottom: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+  
+.recommendations {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+  
+.track {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    width: 200px;
+}
+  
+.track img.album-art {
+    width: 100%;
+    border-radius: 5px;
+}
+  
+.track a {
+    display: block;
+    margin-top: 10px;
+    color: #1db954;
+    text-decoration: none;
+}
+  
+.track a:hover {
+    text-decoration: underline;
+}
+ 
+.content-container {
+    background-color: rgba(0, 0, 0, 0.7); /* Transparent dark background */
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.img-thumbnail {
+    border-radius: 10px;
+}
+
+/* Styling for the Welcome Page */
+.welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #1db954, #191414);  /* Spotify colors */
+    color: white;
+    text-align: center;
+}
+
+.welcome-container h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.welcome-container p {
+    font-size: 1.5em;
+    margin-bottom: 30px;
+}
+
+.welcome-container a.btn-login {
+    text-decoration: none;
+    padding: 15px 30px;
+    background-color: #1db954;  /* Spotify green */
+    color: white;
+    font-size: 1.2em;
+    font-weight: bold;
+    border-radius: 30px;
+    transition: background-color 0.3s ease;
+}
+
+.welcome-container a.btn-login:hover {
+    background-color: #14833b;  /* Darker green on hover */
+}
+

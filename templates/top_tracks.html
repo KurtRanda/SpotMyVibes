@@ -1,23 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Top Tracks</title>
-</head>
-<body>
-    <h1>Your Top Tracks</h1>
-    <ul>
-    {% for track in tracks %}
-        <li>
-            <strong>{{ track['name'] }}</strong> by {{ track['artists'] | map(attribute='name') | join(', ') }}
-            <p>Album: {{ track['album']['name'] }}</p>
-            {% if track['album']['images'] %}
-                <img src="{{ track['album']['images'][0]['url'] }}" alt="Album Art" width="100">
-            {% endif %}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container content-container mt-5">
+    <h1 class="text-center text-white mb-4">Your Top Tracks</h1>
+    <ul class="list-group">
+        {% for track in tracks %}
+        <li class="list-group-item bg-dark text-white mb-3 p-3 rounded">
+            <div class="d-flex align-items-center">
+                {% if track['album']['images'] %}
+                <img src="{{ track['album']['images'][0]['url'] }}" alt="Album Art" class="img-thumbnail me-3" width="100">
+                {% endif %}
+                <div>
+                    <h5><strong>{{ track['name'] }}</strong> by {{ track['artists'] | map(attribute='name') | join(', ') }}</h5>
+                    <p class="mb-1">Album: {{ track['album']['name'] }}</p>
+                    <p class="mb-1">Genre: {{ track['genre'] }}</p>
+                </div>
+            </div>
+
+            <!-- Add to Playlist Form -->
+            <form action="{{ url_for('add_track_to_playlist', track_id=track['id']) }}" method="POST" class="mt-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="input-group mb-3">
+                    <label class="input-group-text" for="playlist_id">Select Playlist:</label>
+                    <select name="playlist_id" id="playlist_id" class="form-select">
+                        {% for playlist in playlists %}
+                        <option value="{{ playlist.spotify_id }}">{{ playlist.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-success">Add to Playlist</button>
+                </div>
+            </form>
         </li>
-    {% endfor %}
+        {% endfor %}
     </ul>
-</body>
-</html>
+</div>
+{% endblock %}
+
+
 

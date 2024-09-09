@@ -22,20 +22,44 @@ class User(db.Model):
     playlists = db.relationship('Playlist', backref='user', lazy=True)
     recommendations = db.relationship('Recommendation', backref='user', lazy=True)
 
+    # Association table for many-to-many relationship between playlist and track (helped resolve issue of removing tracks from single playlist, not whole database)
+playlist_tracks = db.Table('playlist_tracks',
+    db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
+    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
+)
+# Track Model:
+# Represents individual tracks.
+# genres establishes a many-to-many relationship with the Genre model.
+class Track(db.Model):
+    __tablename__ = 'tracks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    spotify_id = db.Column(db.String(255), nullable=False, unique=True)
+    name = db.Column(db.String(255), nullable=False)
+    album = db.Column(db.String(255))
+    artists = db.Column(db.String(255))
+    image_url = db.Column(db.String(255))
+    genre = db.Column(db.String, nullable=True)
+    # Many-to-many relationship with playlists
+    playlists = db.relationship('Playlist', secondary=playlist_tracks, back_populates='tracks')
+
+
 # Playlist Model:
 # Each playlist is associated with a user via owner_id.
 # tracks establishes a relationship to Track model, linking tracks to playlists.
 class Playlist(db.Model):
     __tablename__ = 'playlists'
-
     id = db.Column(db.Integer, primary_key=True)
     spotify_id = db.Column(db.String(255), nullable=False, unique=True)
     name = db.Column(db.String(255), nullable=False)
-    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # ForeignKey to User table
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     total_tracks = db.Column(db.Integer)
     image_url = db.Column(db.String(255))
 
-    tracks = db.relationship('Track', backref='playlist', lazy=True)
+    # Many-to-many relationship with tracks
+    tracks = db.relationship('Track', secondary=playlist_tracks, back_populates='playlists')
+
+
 # UserTrack Model:
 # This model tracks which songs are associated with which playlists.
 # track_id is a unique identifier for each track.
@@ -73,19 +97,5 @@ class Genre(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False, unique=True)
 
-# Track Model:
-# Represents individual tracks.
-# genres establishes a many-to-many relationship with the Genre model.
-class Track(db.Model):
-    __tablename__ = 'tracks'
-
-    id = db.Column(db.Integer, primary_key=True)
-    spotify_id = db.Column(db.String(255), nullable=False, unique=True)
-    name = db.Column(db.String(255), nullable=False)
-    album = db.Column(db.String(255))
-    artists = db.Column(db.String(255))  # Store artists as a comma-separated string
-    image_url = db.Column(db.String(255))
-    genres = db.relationship('Genre', secondary=association_table, backref=db.backref('tracks', lazy=True))
-    playlist_id = db.Column(db.Integer, db.ForeignKey('playlists.id'))  # ForeignKey to Playlist table
 
 
