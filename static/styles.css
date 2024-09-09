@@ -7,7 +7,6 @@ body {
     padding: 0;
 }
   
-
 .navbar {
     background: linear-gradient(135deg, #1db954 0%, #121212 50%);
 }
@@ -37,7 +36,6 @@ body {
 .container {
     margin-top: 30px;
 }
-
 
 .playlists-container {
     display: grid;
@@ -192,3 +190,85 @@ body {
     background-color: #14833b;  /* Darker green on hover */
 }
 
+/* Responsive Adjustments */
+
+/* Mobile Styles */
+@media (max-width: 767px) {
+    .hero h1 {
+        font-size: 2rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .welcome-container h1 {
+        font-size: 2rem;
+    }
+
+    .welcome-container p {
+        font-size: 1.2rem;
+    }
+
+    .playlists-container {
+        grid-template-columns: 1fr;
+    }
+
+    .track {
+        width: 100%;
+    }
+}
+
+/* Tablet Styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+
+    .hero p {
+        font-size: 1.1rem;
+    }
+
+    .welcome-container h1 {
+        font-size: 2.5rem;
+    }
+
+    .welcome-container p {
+        font-size: 1.4rem;
+    }
+
+    .playlists-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .track {
+        width: 100%;
+    }
+}
+
+/* Desktop Styles */
+@media (min-width: 1024px) {
+    .hero h1 {
+        font-size: 3rem;
+    }
+
+    .hero p {
+        font-size: 1.2rem;
+    }
+
+    .welcome-container h1 {
+        font-size: 3rem;
+    }
+
+    .welcome-container p {
+        font-size: 1.5rem;
+    }
+
+    .playlists-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .track {
+        width: 200px;
+    }
+}
