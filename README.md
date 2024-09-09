@@ -1,76 +1,39 @@
 SpotMyVibes
-Visit SpotMyVibes
-
-Table of Contents
-Introduction
-Features
-User Flow
-Spotify API
-Technology Stack
-Setup & Installation
-Introduction
-SpotMyVibes is a personalized music discovery and playlist management app powered by the Spotify API. Users can log in with their Spotify account, discover new music based on their listening habits, explore tracks, albums, and artists, and manage their playlists directly through the app. The platform provides tailored recommendations, insight into top tracks and recently played songs, and a seamless way to curate playlists.
+Live App URL
+Description
+SpotMyVibes is a web application that helps users discover new music based on their listening habits on Spotify. With features like viewing your top tracks, recently played music, and creating custom playlists, SpotMyVibes enhances your Spotify experience with personalized music recommendations, genre-based exploration, and more.
 
 Features
-Spotify Login:
-
-Users can authenticate via their Spotify account using Spotify OAuth, ensuring secure login and access to their music data.
-Top Tracks:
-
-Displays the user's most listened-to tracks, allowing them to add these to any playlist easily.
-Recently Played:
-
-Shows the tracks that the user recently played, with options to add them to playlists or explore more from the artist/album.
-Search Functionality:
-
-Allows users to search for tracks, albums, and artists, and view detailed information about each.
-Playlist Management:
-
-Users can view, create, and manage playlists, adding tracks from their top tracks, recently played, or searched songs.
-Music Recommendations:
-
-Generates music recommendations based on the user’s favorite genres, artists, or tracks, allowing them to explore new music effortlessly.
-View Artist/Album Details:
-
-Users can explore the top tracks and albums of any artist or view tracklists of albums, with the ability to add tracks to their playlists.
+Login with Spotify: Users can authenticate via Spotify’s OAuth2.
+View Top Tracks: Shows the user's top tracks based on their Spotify listening history.
+Recently Played Tracks: Displays the most recently played tracks on Spotify.
+Search for Music: Search for tracks, artists, and albums directly using Spotify's API.
+Create and Manage Playlists: Users can add or remove tracks from their playlists.
+Music Recommendations: Get recommendations based on genre, artist, or track.
+View Album and Artist Details: Explore album tracks or an artist’s top songs and albums.
 User Flow
-Login: Users are prompted to log in via their Spotify account. Once authenticated, the app fetches their Spotify data.
+Login: The user is prompted to log in with their Spotify account.
+Dashboard: After logging in, users can navigate through the app's features such as top tracks, recently played tracks, and their playlists.
+Search: Users can search for specific tracks, artists, or albums.
+Playlist Management: From the search results or browsing top tracks, users can add songs to their playlists.
+Recommendations: Users can explore music recommendations based on different seeds (artist, track, genre).
+API Used
+Spotify Web API is the core API used in this app. It provides endpoints for user authentication, retrieving user profile data, top tracks, recently played tracks, playlists, and more.
 
-Dashboard: After logging in, users are greeted with their top tracks and recently played songs. They can also access playlists and search for new music.
+Authentication: OAuth2 is used for user login and to obtain an access token.
+Music Data: Endpoints are used to fetch data on tracks, albums, artists, and recommendations.
+Notes: You will need a valid Spotify account to log in and access the app features. The Spotify Web API limits the number of requests and requires proper API key management for production-level usage.
 
-Search & Explore: Users can search for tracks, albums, or artists, view their details, and add tracks to their playlists.
-
-Recommendations: Users can get personalized recommendations based on genres, artists, or tracks, and add new tracks to their playlists from the suggestions.
-
-Playlist Management: Users can manage their playlists by adding or removing tracks, viewing detailed playlists, and synchronizing their playlist with Spotify.
-
-Spotify API
-SpotMyVibes leverages the Spotify Web API for:
-
-User authentication via Spotify OAuth.
-Fetching user’s top tracks, recently played tracks, and playlists.
-Searching for tracks, albums, and artists.
-Managing playlists (adding/removing tracks).
-Notes about Spotify API
-The app requires an active Spotify Premium account to access certain features (e.g., playback control).
-Spotify’s rate limiting must be taken into account. If many requests are made in a short period, the API may throttle the app temporarily.
 Technology Stack
-Backend:
-
-Python (Flask): Lightweight web framework for building the backend and handling routes.
-PostgreSQL: For persistent storage of user data, playlists, and track information.
-SQLAlchemy: ORM for managing database interactions and models.
-Frontend:
-
-HTML/CSS: For structuring and styling the web pages.
-Jinja2: Templating engine for rendering dynamic content in HTML.
-JavaScript: For handling client-side interactions and dynamic page updates.
-API:
-
-Spotify Web API: For accessing user data, managing playlists, and fetching recommendations.
-Authentication:
-
-Spotify OAuth: Secure user authentication with Spotify's OAuth 2.0.
-Deployment:
-
-Render: For hosting the Flask app and PostgreSQL database in a live environment.
+Backend: Python, Flask
+Frontend: HTML, CSS, Jinja2 templates
+Database: PostgreSQL
+APIs: Spotify Web API
+Authentication: Spotify OAuth2
+Deployment: Heroku
+Other Libraries:
+Flask-WTF (Forms)
+Flask-SQLAlchemy (Database ORM)
+Flask-Migrate (Database migrations)
+Spotipy (Spotify API integration)
+Gunicorn (Production WSGI server)
