@@ -1,28 +1,32 @@
 from flask import Flask, redirect, request, session, url_for, render_template, abort, make_response, flash 
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.orm import joinedload
-from models import db, User, Track, Genre, Playlist, Recommendation, UserTrack, playlist_tracks  # Import `db` and all models
+from models import db, User, Track, Genre, Playlist, Recommendation, UserTrack, playlist_tracks  # Import db and all models
 import requests, base64, os, hashlib, secrets, time
 from flask_migrate import Migrate
 from urllib.parse import urlencode
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
+
 app = Flask(__name__)
 
-DATABASE_URL = os.getenv("postgres://u7klut5lsablv6:p35cab71cade7259b1d6e06336a575390a0140cbdccb96d56675bdb2d38c86c48@cd5gks8n4kb20g.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/dac8jk08g5o6nb")
-engine = create_engine(DATABASE_URL)
+# Get DATABASE_URL dynamically from the environment
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL is None:
     raise ValueError("DATABASE_URL environment variable is not set.")
 
-engine = create_engine(DATABASE_URL)
-
 # Configuration for SQLAlchemy
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://kurt:mysecurepassword@localhost/spotifydb'
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'your_secret_key'  # Ensure you have a secret key
+
+# Ensure you have a secret key for sessions and CSRF protection
+app.secret_key = secrets.token_hex(16)
+
+# CSRF Protection
 csrf = CSRFProtect()
 csrf.init_app(app)
+
 # Initialize Flask-Migrate
 migrate = Migrate(app, db)
 
@@ -30,13 +34,11 @@ migrate = Migrate(app, db)
 db.init_app(app)
 
 # Spotify API details
-client_id = '145d25fd21e4441fa2c343749071f82c'
-client_secret = 'your_client_secret'
+client_id = os.getenv('SPOTIFY_CLIENT_ID')
+client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
 redirect_uri = 'https://spotmyvibes.herokuapp.com/callback'
 token_url = "https://accounts.spotify.com/api/token"
 profile_url = 'https://api.spotify.com/v1/me'
-DATABASE_URL = os.getenv("postgres://u7klut5lsablv6:p35cab71cade7259b1d6e06336a575390a0140cbdccb96d56675bdb2d38c86c48@cd5gks8n4kb20g.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/dac8jk08g5o6nb")
-engine = create_engine(DATABASE_URL)
 ### Helper functions ###
 
 # Helper function to generate code verifier and challenge for PKCE
