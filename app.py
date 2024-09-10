@@ -367,6 +367,9 @@ def callback():
         else:
             # Log the error from Spotify's response for further debugging
             print(f"Error from Spotify: {response_data}")
+            print(f"Authorization Code: {code}")
+            print(f"Code Verifier: {code_verifier}")
+            print(f"Payload being sent to Spotify: {payload}")
             return f"Error: {response_data.get('error_description', 'Unknown error')}", 400
     else:
         return 'Authorization failed', 400
