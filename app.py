@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 app = Flask(__name__)
 
 # Get DATABASE_URL dynamically from the environment
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('DATABASE_URL').replace("postgres://", "postgresql://")
 
 if DATABASE_URL is None:
     raise ValueError("DATABASE_URL environment variable is not set.")
