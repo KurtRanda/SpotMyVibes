@@ -10,10 +10,11 @@ from sqlalchemy import create_engine
 
 app = Flask(__name__)
 
-# Get DATABASE_URL dynamically from the environment
-DATABASE_URL = os.getenv('DATABASE_URL').replace("postgres://", "postgresql://")
-
-if DATABASE_URL is None:
+# Get DATABASE_URL dynamically from the environment and fix URI for SQLAlchemy compatibility
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+else:
     raise ValueError("DATABASE_URL environment variable is not set.")
 
 # Configuration for SQLAlchemy
@@ -34,11 +35,20 @@ migrate = Migrate(app, db)
 db.init_app(app)
 
 # Spotify API details
-client_id = os.getenv('145d25fd21e4441fa2c343749071f82c')
-client_secret = os.getenv('61326b6e6bc14cbfb605a1ce44657182')
+client_id = os.getenv('SPOTIFY_CLIENT_ID')  # Corrected environment variable usage
+client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')  # Corrected environment variable usage
 redirect_uri = 'https://spotmyvibes.herokuapp.com/callback'
+
+# Check if the client ID and secret are set, if not, raise an error
+if not client_id or not client_secret:
+    raise ValueError("Spotify Client ID or Client Secret environment variables are not set.")
+
+# Spotify Authorization URL
+SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 token_url = "https://accounts.spotify.com/api/token"
 profile_url = 'https://api.spotify.com/v1/me'
+
+
 ### Helper functions ###
 
 # Helper function to generate code verifier and challenge for PKCE
