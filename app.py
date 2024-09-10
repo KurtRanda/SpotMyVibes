@@ -34,8 +34,8 @@ migrate = Migrate(app, db)
 db.init_app(app)
 
 # Spotify API details
-client_id = os.getenv('SPOTIFY_CLIENT_ID')
-client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+client_id = os.getenv('145d25fd21e4441fa2c343749071f82c')
+client_secret = os.getenv('61326b6e6bc14cbfb605a1ce44657182')
 redirect_uri = 'https://spotmyvibes.herokuapp.com/callback'
 token_url = "https://accounts.spotify.com/api/token"
 profile_url = 'https://api.spotify.com/v1/me'
