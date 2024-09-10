@@ -99,6 +99,10 @@ def ensure_access_token():
 
 def refresh_access_token():
     refresh_token = session.get('refresh_token')
+    
+    if not refresh_token:
+        flash("Refresh token is missing. Please log in again.")
+        return None
 
     refresh_response = requests.post(token_url, data={
         'grant_type': 'refresh_token',
@@ -107,10 +111,17 @@ def refresh_access_token():
         'client_secret': client_secret,
     })
 
-    token_info = refresh_response.json()
-    session['access_token'] = token_info.get('access_token')
-    session['expires_in'] = token_info.get('expires_in')
-    session['token_acquired_at'] = int(time.time())
+    if refresh_response.status_code == 200:
+        token_info = refresh_response.json()
+        session['access_token'] = token_info.get('access_token')
+        session['expires_in'] = token_info.get('expires_in')
+        session['token_acquired_at'] = int(time.time())
+        return True
+    else:
+        error_description = refresh_response.json().get('error_description', 'Unknown error')
+        flash(f"Error refreshing access token: {error_description}")
+        return None
+
 
 def fetch_genre_for_artist(artist_id):
     access_token = session.get('access_token')
@@ -317,48 +328,59 @@ def login_route():
 @app.route('/callback')
 def callback():
     code = request.args.get('code')
+    if not code:
+        return 'Authorization failed: no code provided', 400
 
-    if code:
-        code_verifier = session.get('code_verifier')
+    # Debugging log to check if the code is returned
+    print(f"Authorization code received: {code}")
 
-        payload = {
-            'client_id': client_id,
-            'grant_type': 'authorization_code',
-            'code': code,
-            'redirect_uri': redirect_uri,
-            'code_verifier': code_verifier,
-        }
+    code_verifier = session.get('code_verifier')
 
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        response = requests.post(token_url, data=payload, headers=headers)
-        response_data = response.json()
+    if not code_verifier:
+        return 'Code verifier missing in session', 400
 
-        if response.status_code == 200:
-            session['access_token'] = response_data.get('access_token')
-            session['refresh_token'] = response_data.get('refresh_token')
-            session['expires_in'] = response_data.get('expires_in')
-            session['token_acquired_at'] = int(time.time())
+    payload = {
+        'client_id': client_id,
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': redirect_uri,
+        'code_verifier': code_verifier,
+    }
 
-            profile_data = make_spotify_request(profile_url)
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    response = requests.post(token_url, data=payload, headers=headers)
+    response_data = response.json()
 
-            session['spotify_id'] = profile_data['id']
-            user = User.query.filter_by(spotify_id=profile_data['id']).first()
+    # Check if the request to Spotify was successful
+    if response.status_code == 200:
+        session['access_token'] = response_data.get('access_token')
+        session['refresh_token'] = response_data.get('refresh_token')
+        session['expires_in'] = response_data.get('expires_in')
+        session['token_acquired_at'] = int(time.time())
 
-            if not user:
-                user = User(
-                    spotify_id=profile_data['id'],
-                    display_name=profile_data['display_name'],
-                    email=profile_data['email'],
-                    profile_image_url=profile_data['images'][0]['url'] if profile_data['images'] else None
-                )
-                db.session.add(user)
-                db.session.commit()
+        # Fetch the Spotify user's profile information
+        profile_data = make_spotify_request(profile_url)
 
-            return redirect(url_for('profile'))
-        else:
-            return f"Error: {response_data.get('error_description', 'Unknown error')}", 400
+        session['spotify_id'] = profile_data['id']
+        user = User.query.filter_by(spotify_id=profile_data['id']).first()
+
+        if not user:
+            user = User(
+                spotify_id=profile_data['id'],
+                display_name=profile_data['display_name'],
+                email=profile_data['email'],
+                profile_image_url=profile_data['images'][0]['url'] if profile_data['images'] else None
+            )
+            db.session.add(user)
+            db.session.commit()
+
+        return redirect(url_for('profile'))
     else:
-        return 'Authorization failed', 400
+        # Log and display any errors
+        error_message = response_data.get('error_description', 'Unknown error')
+        print(f"Error during token exchange: {error_message}")
+        return f"Error: {error_message}", 400
+
 
 
 @app.route('/profile')
