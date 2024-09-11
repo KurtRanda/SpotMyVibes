@@ -1,6 +1,7 @@
 #Database models
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Table, Column, Integer, ForeignKey
 
 db = SQLAlchemy()
 
@@ -59,7 +60,10 @@ class Playlist(db.Model):
     # Many-to-many relationship with tracks
     tracks = db.relationship('Track', secondary=playlist_tracks, back_populates='playlists')
 
-
+playlist_tracks = Table('playlist_tracks',
+    db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
+    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
+)
 # UserTrack Model:
 # This model tracks which songs are associated with which playlists.
 # track_id is a unique identifier for each track.

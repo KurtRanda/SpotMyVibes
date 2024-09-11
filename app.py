@@ -1,5 +1,6 @@
 from flask import Flask, redirect, request, session, url_for, render_template, abort, make_response, flash 
 from flask_wtf.csrf import CSRFProtect
+from dotenv import load_dotenv
 from sqlalchemy.orm import joinedload
 from models import db, User, Track, Genre, Playlist, Recommendation, UserTrack, playlist_tracks  # Import db and all models
 import requests, base64, os, hashlib, secrets, time
@@ -8,10 +9,11 @@ from urllib.parse import urlencode
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
 
+load_dotenv()
 app = Flask(__name__)
-
+app.config['DEBUG'] = True
 # Get DATABASE_URL dynamically from the environment and fix URI for SQLAlchemy compatibility
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('DATABASE_URL') 
 if DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
 else:
@@ -37,7 +39,8 @@ db.init_app(app)
 # Spotify API details
 client_id = os.getenv('SPOTIFY_CLIENT_ID')  # Corrected environment variable usage
 client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')  # Corrected environment variable usage
-redirect_uri = 'https://spotmyvibes.herokuapp.com/callback'
+redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'https://spotmyvibes.herokuapp.com/callback')or 'http://127.0.0.1:5000/callback'
+scope = 'user-read-private user-read-email user-read-recently-played user-top-read playlist-modify-public playlist-modify-private'
 
 # Check if the client ID and secret are set, if not, raise an error
 if not client_id or not client_secret:
