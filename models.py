@@ -11,7 +11,7 @@ db = SQLAlchemy()
 # recommendations establishes a one-to-many relationship between User and Recommendation.
 playlist_tracks = db.Table('playlist_tracks',
     db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
-    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
+    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True), extend_existing=True
 )
 
 class User(db.Model):
