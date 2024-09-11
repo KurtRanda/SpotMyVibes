@@ -89,11 +89,6 @@ association_table = db.Table('association',
     db.Column('genre_id', db.Integer, db.ForeignKey('genres.id'))
 )
 
-# Association table for Playlist and Track many-to-many relationship
-playlist_tracks = db.Table('playlist_tracks',
-    db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
-    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
-)
 
 # Genre Model:
 # Represents musical genres.
