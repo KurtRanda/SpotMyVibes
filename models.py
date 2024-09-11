@@ -9,6 +9,11 @@ db = SQLAlchemy()
 # Represents users of the app.
 # playlists establishes a one-to-many relationship between User and Playlist.
 # recommendations establishes a one-to-many relationship between User and Recommendation.
+playlist_tracks = db.Table('playlist_tracks',
+    db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
+    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
+)
+
 class User(db.Model):
     __tablename__ = 'users'
 
@@ -22,12 +27,6 @@ class User(db.Model):
     
     playlists = db.relationship('Playlist', backref='user', lazy=True)
     recommendations = db.relationship('Recommendation', backref='user', lazy=True)
-
-    # Association table for many-to-many relationship between playlist and track (helped resolve issue of removing tracks from single playlist, not whole database)
-playlist_tracks = db.Table('playlist_tracks',
-    db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
-    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
-)
 # Track Model:
 # Represents individual tracks.
 # genres establishes a many-to-many relationship with the Genre model.
@@ -48,6 +47,7 @@ class Track(db.Model):
 # Playlist Model:
 # Each playlist is associated with a user via owner_id.
 # tracks establishes a relationship to Track model, linking tracks to playlists.
+
 class Playlist(db.Model):
     __tablename__ = 'playlists'
     id = db.Column(db.Integer, primary_key=True)
@@ -60,10 +60,6 @@ class Playlist(db.Model):
     # Many-to-many relationship with tracks
     tracks = db.relationship('Track', secondary=playlist_tracks, back_populates='playlists')
 
-playlist_tracks = Table('playlist_tracks',
-    db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
-    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
-)
 # UserTrack Model:
 # This model tracks which songs are associated with which playlists.
 # track_id is a unique identifier for each track.
@@ -91,6 +87,12 @@ class Recommendation(db.Model):
 association_table = db.Table('association',
     db.Column('track_id', db.Integer, db.ForeignKey('tracks.id')),
     db.Column('genre_id', db.Integer, db.ForeignKey('genres.id'))
+)
+
+# Association table for Playlist and Track many-to-many relationship
+playlist_tracks = db.Table('playlist_tracks',
+    db.Column('playlist_id', db.Integer, db.ForeignKey('playlists.id'), primary_key=True),
+    db.Column('track_id', db.Integer, db.ForeignKey('tracks.id'), primary_key=True)
 )
 
 # Genre Model:
