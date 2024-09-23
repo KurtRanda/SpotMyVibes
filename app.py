@@ -332,9 +332,16 @@ def login_route():
 @app.route('/callback')
 def callback():
     code = request.args.get('code')
-
+    if not code:
+        return 'Authorization failed: No code provided', 400
+    
+    
     if code:
         code_verifier = session.get('code_verifier')
+        if not code_verifier:
+            return 'Authorization failed: No code verifier found in session', 400
+       
+       # Payload for token exchange
         payload = {
             'client_id': client_id,
             'grant_type': 'authorization_code',
