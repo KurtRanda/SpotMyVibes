@@ -325,6 +325,8 @@ def list_routes():
 def login_route():
     code_verifier, code_challenge = generate_code_verifier_and_challenge()
     session['code_verifier'] = code_verifier
+    session.permanent = True
+    print(f"Session code_verifier set: {session.get('code_verifier')}") #debugging 404 error
 
     auth_params = {
         'response_type': 'code',
@@ -348,6 +350,8 @@ def callback():
 
     if code:
         code_verifier = session.get('code_verifier')
+        print(f"Session code_verifier retrieved: {session.get('code_verifier')}") #404 debugging
+
         if not code_verifier:
             return 'Authorization failed: No code verifier found in session', 400
        
