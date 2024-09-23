@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, redirect, request, session, url_for, render_template, abort, make_response, flash 
-from flask_wtf.csrf import CSRFProtect, csrf_exempt
+from flask_wtf.csrf import CSRFProtect
 from datetime import timedelta
 from dotenv import load_dotenv
 from sqlalchemy.orm import joinedload
@@ -342,7 +342,7 @@ def login_route():
 
 
 @app.route('/callback')
-@csrf_exempt 
+@csrf.exempt
 def callback():
     code = request.args.get('code')
     if not code:
