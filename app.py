@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, redirect, request, session, url_for, render_template, abort, make_response, flash 
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, csrf_exempt
 from datetime import timedelta
 from dotenv import load_dotenv
 from sqlalchemy.orm import joinedload
@@ -45,7 +45,7 @@ db.init_app(app)
 # Spotify API details
 client_id = os.getenv('SPOTIFY_CLIENT_ID')  # Corrected environment variable usage
 client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')  # Corrected environment variable usage
-redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'https://spotmyvibes.herokuapp.com/callback')or 'http://127.0.0.1:5000/callback'
+redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'https://spotmyvibes.herokuapp.com/callback')
 scope = 'user-read-private user-read-email user-read-recently-played user-top-read playlist-modify-public playlist-modify-private'
 
 # Check if the client ID and secret are set, if not, raise an error
@@ -342,6 +342,7 @@ def login_route():
 
 
 @app.route('/callback')
+@csrf_exempt 
 def callback():
     code = request.args.get('code')
     if not code:
