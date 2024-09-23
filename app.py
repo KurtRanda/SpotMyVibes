@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, session, url_for, render_template, abort, make_response, flash 
+from flask import Flask, jsonify, redirect, request, session, url_for, render_template, abort, make_response, flash 
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 from sqlalchemy.orm import joinedload
@@ -310,6 +310,10 @@ def get_track_id(track_name, access_token):
 def welcome():
     return render_template('welcome.html')
 
+@app.route('/routes')
+def list_routes():
+    return jsonify([str(rule) for rule in app.url_map.iter_rules()])
+
 
 @app.route('/login')
 def login_route():
@@ -335,7 +339,7 @@ def callback():
     if not code:
         return 'Authorization failed: No code provided', 400
     
-    
+
     if code:
         code_verifier = session.get('code_verifier')
         if not code_verifier:
