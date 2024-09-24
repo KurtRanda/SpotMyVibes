@@ -27,10 +27,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Ensure you have a secret key for sessions and CSRF protection
 app.secret_key = secrets.token_hex(16)
 
-app.config['SESSION_COOKIE_SECURE'] = True  # Ensures cookies are sent over HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevents JavaScript from accessing session cookie
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Controls when cookies are sent (Lax is recommended for OAuth)
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
 # CSRF Protection
 csrf = CSRFProtect()
@@ -45,7 +41,7 @@ db.init_app(app)
 # Spotify API details
 client_id = os.getenv('SPOTIFY_CLIENT_ID')  # Corrected environment variable usage
 client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')  # Corrected environment variable usage
-redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'https://spotmyvibes.herokuapp.com/callback')
+redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI')
 scope = 'user-read-private user-read-email user-read-recently-played user-top-read playlist-modify-public playlist-modify-private'
 
 # Check if the client ID and secret are set, if not, raise an error
@@ -745,5 +741,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True)
-
 
