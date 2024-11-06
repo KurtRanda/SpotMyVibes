@@ -4,15 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to Spot My Vibes</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Link to Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <div class="welcome-container">
-        <h1>Welcome to the Spotify App!</h1>
-        <p>Discover new music, view your playlists, top tracks, and more.</p>
+    <div class="welcome-container d-flex flex-column align-items-center justify-content-center text-center vh-100">
+        <h1 class="mb-3">Welcome to Spot My Vibes!</h1>
+        <p class="lead">Discover new music, view your playlists, top tracks, and more.</p>
 
         <!-- Spotify Login Button -->
-        <a href="{{ url_for('login_route') }}" class="btn-login">Login with Spotify</a>
+        <a href="{{ url_for('auth.login_route') }}" class="btn btn-primary btn-lg mt-4" aria-label="Login with Spotify">Login with Spotify</a>
     </div>
+
+    <!-- Optional Footer -->
+    <footer class="text-center text-muted mt-5">
+        <p>&copy; {{ current_year }} Spot My Vibes. All rights reserved.</p>
+    </footer>
+
+    <!-- Bootstrap JS (Optional if using any JS plugins from Bootstrap) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

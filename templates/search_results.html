@@ -1,87 +1,75 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div class="container content-container mt-5">
-        <h1 class="text-center text-white mb-4">Search Results</h1>
+<h1 class="text-center text-white">Search Results for "{{ query }}"</h1>
 
-        <h2>Albums</h2>
-        {% if albums %}
-            <ul class="list-group">
-            {% for album in albums %}
-                <li class="list-group-item bg-dark text-white mb-3 p-3 rounded">
-                    <!-- Link to view album details in your app -->
-                    <a href="{{ url_for('view_album', album_id=album.id) }}">
-                        {{ album.name }} by {{ album.artist }}
-                    </a>
-                    {% if album.image_url %}
-                    <img src="{{ album.image_url }}" alt="Album Art" class="img-thumbnail me-3" width="100">
-                    {% endif %}
-                </li>
-            {% endfor %}
-            </ul>
-        {% else %}
-            <p>No albums found.</p>
-        {% endif %}
-
-        <h2>Artists</h2>
-        {% if artists %}
-            <ul class="list-group">
-            {% for artist in artists %}
-                <li class="list-group-item bg-dark text-white mb-3 p-3 rounded">
-                    <!-- Link to view artist details in your app -->
-                    <a href="{{ url_for('view_artist', artist_id=artist.id) }}">
-                        {{ artist.name }}
-                    </a>
-                    {% if artist.image_url %}
-                    <img src="{{ artist.image_url }}" alt="Artist Image" class="img-thumbnail me-3" width="100">
-                    {% endif %}
-                </li>
-            {% endfor %}
-            </ul>
-        {% else %}
-            <p>No artists found.</p>
-        {% endif %}
-
-        <h2>Tracks</h2>
-        {% if tracks %}
-            <ul class="list-group">
-            {% for track in tracks %}
-                <li class="list-group-item bg-dark text-white mb-3 p-3 rounded">
-                    <div class="d-flex align-items-center">
-                        {% if track['album']['images'] %}
-                        <img src="{{ track['album']['images'][0]['url'] }}" alt="Album Art" class="img-thumbnail me-3" width="100">
-                        {% endif %}
-                        <div>
-                            <h5><strong>{{ track['name'] }}</strong> by {{ track['artist'] }}</h5>
-                            <p class="mb-1">Album: {{ track['album'] }}</p>
-                        </div>
-                    </div>
-
-                    <!-- Add to Playlist Form -->
-                    <form action="{{ url_for('add_track_to_playlist', track_id=track['id']) }}" method="POST" class="mt-3">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="input-group mb-3">
-                            <label class="input-group-text" for="playlist_id">Select Playlist:</label>
-                            <select name="playlist_id" id="playlist_id" class="form-select">
-                                {% for playlist in playlists %}
-                                <option value="{{ playlist.spotify_id }}">{{ playlist.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit" class="btn btn-success">Add to Playlist</button>
-                        </div>
-                    </form>                              
-                </li>
-            {% endfor %}
-            </ul>
-        {% else %}
-            <p>No tracks found.</p>
-        {% endif %}
+<!-- Albums Section -->
+<h2 class="text-white mt-4">Albums</h2>
+<div class="row">
+    {% for album in albums %}
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark text-white h-100">
+            <img src="{{ album.images[0].url if album.images else url_for('static', filename='default_album.png') }}" class="card-img-top" alt="{{ album.name or 'Unknown Album' }}">
+            <div class="card-body">
+                <h5 class="card-title">{{ album.name or 'Unknown Album' }}</h5>
+                <p class="card-text">By {{ album.artists[0].name if album.artists else 'Unknown Artist' }}</p>
+                <a href="{{ url_for('music.view_album', album_id=album.id) }}" class="btn btn-primary">View Album</a>
+            </div>
+        </div>
     </div>
+    {% endfor %}
+</div>
+
+<!-- Artists Section -->
+<h2 class="text-white mt-4">Artists</h2>
+<div class="row">
+    {% for artist in artists %}
+    <div class="col-md-3 mb-4">
+        <div class="card bg-dark text-white h-100">
+            <img src="{{ artist.images[0].url if artist.images else url_for('static', filename='default_artist.png') }}" class="card-img-top" alt="{{ artist.name or 'Unknown Artist' }}">
+            <div class="card-body">
+                <h5 class="card-title">{{ artist.name or 'Unknown Artist' }}</h5>
+                <a href="{{ url_for('music.view_artist', artist_id=artist.id) }}" class="btn btn-primary">View Artist</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Tracks Section -->
+<h2 class="text-white mt-4">Tracks</h2>
+<div class="row">
+    {% for track in tracks %}
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark text-white h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ track.name or 'Unknown Track' }}</h5>
+                <p class="card-text">By {{ track.artists[0].name if track.artists else 'Unknown Artist' }}</p>
+                <p class="card-text">Album: {{ track.album.name if track.album else 'Unknown Album' }}</p>
+                
+                <!-- Form for adding track to playlist -->
+                <form action="{{ url_for('playlist.add_track_to_playlist', track_id=track.id) }}" method="POST" class="mt-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group mb-3">
+                        <label class="input-group-text" for="playlist_id">Select Playlist:</label>
+                        <select name="playlist_id" id="playlist_id" class="form-select" aria-label="Choose a playlist to add the track">
+                            {% if playlists %}
+                                {% for playlist in playlists %}
+                                    <option value="{{ playlist.spotify_id }}">{{ playlist.name }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="" disabled>No playlists available</option>
+                            {% endif %}
+                        </select>
+                        <button type="submit" class="btn btn-success" {% if not playlists %}disabled{% endif %}>Add to Playlist</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
 {% endblock %}
-
-
-
-
-
 
 

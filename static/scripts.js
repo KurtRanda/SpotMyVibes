@@ -27,10 +27,11 @@ const generateRandomString = (length) => {
   }
   
   const codeVerifier = generateRandomString(64);
-  const codeChallenge = await createCodeChallenge(codeVerifier);
+  const codeChallenge = createCodeChallenge(codeVerifier);
   
   // Save the code verifier in localStorage for later use
   window.localStorage.setItem('code_verifier', codeVerifier);
   
   // Now you can proceed to the authorization step
   
+

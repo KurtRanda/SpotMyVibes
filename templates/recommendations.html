@@ -1,39 +1,55 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <h1>Select Your Recommendations</h1>
+  <div class="container mt-5">
+    <h1>Select Your Recommendations</h1>
 
-  <!-- Display the form to select recommendation type -->
-  <form action="{{ url_for('recommendations') }}" method="get">
-    <div class="form-group">
-      <label for="recommendationType">Select Recommendation Type</label>
-      <select class="form-control" id="recommendationType" name="type">
-        <option value="genre">Genre</option>
-        <option value="artist">Artist</option>
-        <option value="track">Track</option>
-      </select>
-    </div>
+    <!-- Recommendation Type Selection Form -->
+    <form action="{{ url_for('music.recommendations') }}" method="get">
+      <div class="form-group">
+        <label for="recommendationType">Select Recommendation Type</label>
+        <select class="form-control" id="recommendationType" name="type">
+          <option value="genre">Genre</option>
+          <option value="artist">Artist</option>
+          <option value="track">Track</option>
+        </select>
+      </div>
 
-    <div class="form-group">
-      <label for="inputValue">Enter Value</label>
-      <input type="text" class="form-control" id="inputValue" name="value" placeholder="Enter the genre, artist, or track">
-    </div>
+      <div class="form-group mt-3">
+        <label for="inputValue">Enter Value</label>
+        <input type="text" class="form-control" id="inputValue" name="value" placeholder="Enter the genre, artist, or track">
+      </div>
 
-    <button type="submit" class="btn btn-primary">Get Recommendations</button>
-  </form>
+      <button type="submit" class="btn btn-primary mt-3">Get Recommendations</button>
+    </form>
 
-  <!-- If recommendations are available, display them -->
-  {% if tracks %}
-    <h2>Your Recommendations</h2>
-    <div class="recommendations">
-      {% for track in tracks %}
-        <div class="track">
-          <img src="{{ track.album.images[0].url }}" alt="Album Art" class="album-art">
-          <p>{{ track.name }} by {{ track.artists[0].name }}</p>
-          <a href="{{ track.external_urls.spotify }}" target="_blank">Listen on Spotify</a>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
+    <!-- Display Recommendations if Available -->
+    {% if tracks %}
+      <h2 class="mt-5">Your Recommendations</h2>
+      <div class="recommendations d-flex flex-wrap">
+        {% for track in tracks %}
+          <div class="track m-3 p-2 border rounded">
+            <!-- Album Art with fallback -->
+            {% if track.album.images and track.album.images[0] %}
+              <img src="{{ track.album.images[0].url }}" alt="{{ track.name }} Album Art" class="album-art img-fluid">
+            {% else %}
+              <img src="{{ url_for('static', filename='default_album.png') }}" alt="Default Album Art" class="album-art img-fluid">
+            {% endif %}
+            
+            <!-- Track Info -->
+            <p><strong>{{ track.name }}</strong> by 
+               {% if track.artists %}
+                 {{ track.artists[0].name }}
+               {% else %}
+                 Unknown Artist
+               {% endif %}
+            </p>
+            <a href="{{ track.external_urls.spotify }}" target="_blank" class="btn btn-success">Listen on Spotify</a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mt-4">No recommendations available. Try selecting a different type or entering a different value.</p>
+    {% endif %}
+  </div>
 {% endblock %}
-

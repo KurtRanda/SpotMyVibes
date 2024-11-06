@@ -1,103 +1,85 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>{{ playlist.name }}</h1>
+    <!-- Playlist Title and Image -->
+    <h1 class="text-center text-white">{{ playlist.name }}</h1>
+    {% if playlist.image_url %}
+        <img src="{{ playlist.image_url }}" alt="Playlist Image" class="img-fluid mb-4" width="200">
+    {% endif %}
 
     <!-- Sorting Dropdown -->
-    <form id="sort-form" action="" method="GET" onsubmit="return submitSortForm();">
+    <form id="sort-form" method="GET" class="mb-4 d-flex align-items-center" onsubmit="return submitSortForm();">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label for="sort_by">Sort by:</label>
-        <select name="sort_by" id="sort_by" required>
+        <label for="sort_by" class="me-2 text-white">Sort by:</label>
+        <select name="sort_by" id="sort_by" class="form-select me-2 w-auto" required>
             <option value="name">Name</option>
             <option value="artist">Artist</option>
             <option value="album">Album</option>
             <option value="genre">Genre</option>
         </select>
-        <input type="hidden" name="playlist_id" value="{{ playlist.spotify_id }}">
-        <button type="submit">Sort</button>
+        <button type="submit" class="btn btn-primary">Sort</button>
     </form>
 
-    <script>
-        function submitSortForm() {
-            var form = document.getElementById('sort-form');
-            var sortBy = document.getElementById('sort_by').value;
-            var playlistId = "{{ playlist.spotify_id }}";
-            var actionUrl = "{{ url_for('sort_tracks', playlist_id='PLACEHOLDER', sort_by='PLACEHOLDER') }}";
-            actionUrl = actionUrl.replace('PLACEHOLDER', playlistId).replace('PLACEHOLDER', sortBy);
-            form.action = actionUrl;
-            return true;
-        }
-    </script>
-
-    {% if playlist.image_url %}
-        <img src="{{ playlist.image_url }}" alt="Playlist Image" width="200">
-    {% endif %}
-    
     <!-- Display Search Results -->
     {% if search_results %}
-        <h2>Search Results</h2>
-        <ul>
+        <h2 class="text-white">Search Results</h2>
+        <ul class="list-group mb-4">
         {% for track in search_results %}
-            <li>
-                <strong>{{ track.name }}</strong> by {{ track.artist }}
-                <p>Album: {{ track.album }}</p>
-                {% if track.image_url %}
-                    <img src="{{ track.image_url }}" alt="Album Art" width="100">
-                {% endif %}
-                <form action="{{ url_for('add_track_to_playlist', playlist_id=playlist.spotify_id) }}" method="POST" style="display:inline;">
+            <li class="list-group-item bg-dark text-white d-flex align-items-center mb-3">
+                <div>
+                    <strong>{{ track.name }}</strong> by {{ track.artists[0].name if track.artists else 'Unknown Artist' }}
+                    <p class="mb-1">Album: {{ track.album.name if track.album else 'Unknown Album' }}</p>
+                    {% if track.image_url %}
+                        <img src="{{ track.image_url }}" alt="Album Art" class="img-thumbnail me-3" width="100">
+                    {% endif %}
+                </div>
+                <form action="{{ url_for('playlist.add_track_to_playlist', track_id=track.spotify_id) }}" method="POST" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="track_id" value="{{ track.spotify_url.split('/')[-1] }}">
-                    <button type="submit">Add to Playlist</button>
+                    <button type="submit" class="btn btn-success ms-auto">Add to Playlist</button>
                 </form>
             </li>
         {% endfor %}
         </ul>
     {% endif %}
 
-    <h2>Playlist Tracks</h2>
-    <p>Tracks count: {{ tracks | length }}</p>
-    <ul id="tracks-list">
-        {% for track in tracks %}
-        <li id="track-{{ track.spotify_id }}">
-          <strong>{{ track.name }}</strong> by {{ track.artists }}
-          <p>Album: {{ track.album }}</p>
-          {% if track.image_url %}
-          <img src="{{ track.image_url }}" alt="Album Art" width="100">
-          {% endif %}
-          <form action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.spotify_id, track_id=track.spotify_id) }}" method="POST" onsubmit="removeTrack(event, '{{ track.spotify_id }}')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">Remove</button>
-          </form>
-        </li>
-        {% endfor %}
-      </ul>
-      
-      <script>  
-        function removeTrack(event, trackId) {
-          event.preventDefault();
-          
-          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+    <!-- Playlist Tracks -->
+    <h2 class="text-white mt-4">Playlist Tracks</h2>
+    <p class="text-white">Total Tracks: {{ tracks | length }}</p>
+    {% if tracks %}
+        <ul id="tracks-list" class="list-group">
+            {% for track in tracks %}
+            <li class="list-group-item bg-dark text-white d-flex align-items-center mb-3">
+                <div>
+                    <strong>{{ track.name }}</strong> by {{ track.artists }}
+                    <p class="mb-1">Album: {{ track.album }}</p>
+                    {% if track.image_url %}
+                        <img src="{{ track.image_url }}" alt="Album Art" class="img-thumbnail me-3" width="100">
+                    {% endif %}
+                </div>
+                <form action="{{ url_for('playlist.remove_track_from_playlist', playlist_id=playlist.spotify_id, track_id=track.spotify_id) }}" method="POST" class="ms-auto">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Remove</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-white">No tracks available in this playlist.</p>
+    {% endif %}
 
-          fetch(event.target.action, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'X-CSRFToken': csrfToken
-            },
-            body: new URLSearchParams({
-                'csrf_token': csrfToken  
-            })
-          })
-          .then(response => {
-            if (response.ok) {
-              document.getElementById(`track-${trackId}`).remove(); 
-            } else {
-                console.error('Failed to remove track:', response);
-            }
-          })
-          .catch(error => console.error('Error removing track:', error));
+    <!-- JavaScript for Dynamic Sort Form Submission -->
+    <script>
+        function submitSortForm() {
+            const sortBy = document.getElementById('sort_by').value;
+            const playlistId = encodeURIComponent("{{ playlist.spotify_id }}");
+            const sortParam = encodeURIComponent(sortBy);
+            const actionUrl = "{{ url_for('playlist.sort_tracks', playlist_id='__playlist_id__', sort_by='__sort_by__') }}"
+                .replace('__playlist_id__', playlistId)
+                .replace('__sort_by__', sortParam);
+            document.getElementById('sort-form').action = actionUrl;
+            return true;
         }
-      </script>
+    </script>
 {% endblock %}
 
 
