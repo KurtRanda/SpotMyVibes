@@ -1,7 +1,7 @@
 # routes/music_routes.py
 # This module handles music-related routes, including fetching top tracks, recently played, album, artist, recommendations, and search functionality.
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
 from utils import make_spotify_request, ensure_access_token
 from models import User, Playlist
 from services.spotify_service import get_spotify_id  # Updated import
@@ -129,45 +129,62 @@ def view_artist(artist_id):
 def recommendations():
     """Fetch and display recommendations based on genre, artist, or track."""
     if not ensure_access_token():
+        current_app.logger.debug("Access token not found. Redirecting to login.")
         return redirect(url_for('auth.login_route'))
 
     access_token = session.get('access_token')
+    current_app.logger.debug(f"Using access token: {access_token}")
+
     recommendation_type = request.args.get('type')
     value = request.args.get('value')
 
-    # Show flash message only if both type and value are provided
+    current_app.logger.debug(f"Incoming request: type={recommendation_type}, value={value}")
+
     if recommendation_type and value:
         params = {'limit': 10}
+
         if recommendation_type == 'genre':
             params['seed_genres'] = value.lower()
+            current_app.logger.debug(f"Genre-based recommendation requested: {params['seed_genres']}")
         elif recommendation_type == 'artist':
             artist_id = get_spotify_id(value, "artist", access_token)
+            current_app.logger.debug(f"Fetched artist ID for {value}: {artist_id}")
             if artist_id:
                 params['seed_artists'] = artist_id
             else:
+                current_app.logger.error("Artist not found.")
                 flash("Artist not found.", "danger")
-                return render_template('recommendations.html')
+                return render_template('recommendations.html', tracks=[])
         elif recommendation_type == 'track':
             track_id = get_spotify_id(value, "track", access_token)
+            current_app.logger.debug(f"Fetched track ID for {value}: {track_id}")
             if track_id:
                 params['seed_tracks'] = track_id
             else:
+                current_app.logger.error("Track not found.")
                 flash("Track not found.", "danger")
-                return render_template('recommendations.html')
+                return render_template('recommendations.html', tracks=[])
         else:
+            current_app.logger.error("Invalid recommendation type.")
             flash("Invalid recommendation type.", "danger")
-            return render_template('recommendations.html')
+            return render_template('recommendations.html', tracks=[])
+
+        current_app.logger.debug(f"Spotify API request params: {params}")
 
         recommendations_data = MusicService.fetch_recommendations(params, access_token)
-        if recommendations_data:
+        if recommendations_data and 'tracks' in recommendations_data:
             tracks = recommendations_data['tracks']
+            current_app.logger.debug(f"Fetched recommendations: {tracks}")
             return render_template('recommendations.html', tracks=tracks)
         else:
-            flash("Error fetching recommendations.", "danger")
+            current_app.logger.error(f"Spotify API error or no tracks found: {recommendations_data}")
+            flash("No recommendations found. Please try again.", "warning")
             return render_template('recommendations.html', tracks=[])
 
     # Render the form without a flash message if no parameters are provided
+    current_app.logger.debug("No parameters provided. Rendering empty recommendations page.")
     return render_template('recommendations.html')
+
 
 @music_bp.route('/search', methods=['GET'])
 def search_results():

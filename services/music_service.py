@@ -101,11 +101,28 @@ class MusicService:
         """Fetch music recommendations based on seed values from Spotify."""
         url = "https://api.spotify.com/v1/recommendations"
         headers = {'Authorization': f'Bearer {access_token}'}
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code != 200:
-            print(f"Error fetching recommendations: {response.status_code} - {response.text}")
+        
+        # Log the request details for debugging
+        print(f"Fetching recommendations from Spotify API...")
+        print(f"URL: {url}")
+        print(f"Headers: {headers}")
+        print(f"Parameters: {params}")
+        
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            
+            # Handle non-200 status codes
+            if response.status_code != 200:
+                print(f"Error fetching recommendations: {response.status_code} - {response.text}")
+                return None
+    
+            # Parse and return JSON response
+            return response.json()
+    
+        except requests.exceptions.RequestException as e:
+            print(f"An error occurred while making the request: {e}")
             return None
-        return response.json()
+
 
     @staticmethod
     def add_track_to_playlist(playlist_id, track_id, access_token):

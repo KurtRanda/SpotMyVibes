@@ -59,6 +59,11 @@ def welcome():
     """Welcome page route."""
     return render_template('welcome.html')
 
+@app.route('/error')
+def error():
+    """Route to intentionally trigger an internal server error (500)."""
+    raise Exception("Intentional error")
+
 # Error handlers for better user experience
 @app.errorhandler(404)
 def page_not_found(error):

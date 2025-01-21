@@ -45,6 +45,8 @@ class Config:
     SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
     SPOTIFY_PROFILE_URL = "https://api.spotify.com/v1/me"
 
+    DEBUG = True
+
     # Flask session settings
     SESSION_TYPE = 'filesystem'
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=60)  # Session timeout set to 60 minutes

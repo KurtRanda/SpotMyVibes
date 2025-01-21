@@ -54,7 +54,7 @@ class Playlist(db.Model):
     spotify_id = db.Column(db.String(255), nullable=False, unique=True)
     name = db.Column(db.String(255), nullable=False, index=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
-    total_tracks = db.Column(db.Integer)
+    total_tracks = db.Column(db.Integer, nullable=False, default=0)
     image_url = db.Column(db.String(255))
 
     # Many-to-many relationship with tracks
